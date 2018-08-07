@@ -9,17 +9,17 @@
 #--------------------------------
 
 import argparse
-from builtins import input
+# from builtins import input
 import datetime
 from ftplib import FTP
-from netCDF4 import Dataset
+import netCDF4
 import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
-import time
+from time import sleep
 
 import ee
 import numpy as np
@@ -27,7 +27,7 @@ from osgeo import gdal, osr
 
 from config import ds_settings
 
-def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
+def main(workspace, start_dt, end_dt, variables, overwrite_flag=False,
          cron_flag=False, composite_flag=True, upload_flag=True,
          ingest_flag=True):
     """Ingest NOAA_CRN data into Earth Engine
@@ -53,6 +53,9 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
     ingest_flag : bool, optional
         If True, ingest images into Earth Engine (the default is True).
 
+    -------
+    python noaa_crn_daily_cron_asset_upload.py --workspace /Volumes/DHS/NOAA_CRN -s 2006-01-01 -e 2006-01-03 -v 'AWC' --no-upload --no-ingest --debug
+
     Returns
     -------
     None
@@ -62,14 +65,15 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
 
     """
     # Get the default parameters for the dataset from the config file
-    ds_params = ds_settings['NOAA_CRN']
+    dataset = 'NOAA_CRN'
+    ds_params = ds_settings[dataset]
 
     logging.info('\nIngest ' + dataset + ' data into Earth Engine')
 
     # infile_re = re.compile('NOAA_CRN_(?P<date>\d{8})')
     infile_fmt = ds_params['infile_fmt']
     infile_dt_fmt = ds_params['infile_dt_fmt']
-    dat_nodata = ds_params['no_data']
+    dat_nodata = ds_params['dat_nodata']
 
     # Bucket parameters
     # project_name = 'steel-melody-531'
@@ -93,21 +97,24 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
     site_url = ds_params['ftp_server']
     site_folder = ds_params['ftp_folder']
 
-    product_code = ds_params['product_code']
-    band_name = ds_params['variable']
+    band_name = ds_params['bands']
 
     if os.name == 'posix':
         shell_flag = False
     else:
         shell_flag = True
 
-    # No data before 2006-01-01
-    if start_dt < datetime.datetime(2006, 1, 1):
-        start_dt = datetime.datetime(2006, 1, 1)
+    # No data before 2006-01-01 and after 2016-12-31
+    epoch = '20060101'
+    y = int(epoch[0:4])
+    m = int(epoch[4:6])
+    d = int(epoch[6:8])
+    if start_dt < datetime.datetime(y, m, d):
+        start_dt = datetime.datetime(y, m, d)
         logging.info('Adjusting start date to: {}'.format(
             start_dt.strftime('%Y-%m-%d')))
-    if end_dt > datetime.datetime.today():
-        end_dt = datetime.datetime.today()
+    if end_dt > datetime.datetime(2016, 12, 31):
+        end_dt = datetime.datetime(2016, 12, 31)
         logging.info('Adjusting end date to:   {}\n'.format(
             end_dt.strftime('%Y-%m-%d')))
 
@@ -218,16 +225,19 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
         for variable in variables:
             # Each variable has it's own netCDF file containing all dates
             infile_file = infile_fmt.format(var_name=variable)
+            # Save all netCDF file in nc dir
+            ncfile_path = os.path.join(
+                infile_ws, infile_file)
             outfile_path = os.path.join(
                 infile_ws, upload_dt.strftime('%Y'), upload_dt.strftime('%m_%b'),
                 infile_file)
-            logging.debug('  {}'.format(outfile_path))
+            logging.debug('  {}'.format(ncfile_path))
 
             # if overwrite_flag and os.path.isfile(outfile_path):
             #     logging.debug('  Removing netdcf file')
-            #     os.remove(outfile_path)
-            if not os.path.isdir(os.path.dirname(outfile_path)):
-                os.makedirs(os.path.dirname(outfile_path))
+            #     os.remove(ncfile_path)
+            if not os.path.isdir(os.path.dirname(ncfile_path)):
+                os.makedirs(os.path.dirname(ncfile_path))
 
             tif_path = os.path.join(date_ws, '{}.tif'.format(variable))
             logging.debug('  {}'.format(tif_path))
@@ -240,17 +250,17 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
                 logging.debug('  TIF file exists, skipping')
                 continue
 
-            if not os.path.isfile(infile_path) and not os.path.isfile(tif_path):
+            if not os.path.isfile(ncfile_path) and not os.path.isfile(tif_path):
                 logging.debug('  Downloading the file that contains the date')
                 ftp_download(
                     site_url,
                     site_folder,
-                    infile_file, outfile_path)
+                    infile_file, ncfile_path)
 
-            if os.path.isfile(outfile_path) and not os.path.isfile(tif_path):
+            if os.path.isfile(ncfile_path) and not os.path.isfile(tif_path):
                 # Need to read netcdf file
                 logging.debug('  Extracting data for date from nc file')
-                input_nc_f = netCDF4.Dataset(outfile_path, 'r')
+                input_nc_f = netCDF4.Dataset(ncfile_path, 'r')
                 nc_var_name = input_nc_f.variables.keys()[0]
                 logging.debug(' Obtaining array_data for date/variable: ' + str(upload_dt) + '/' + nc_var_name)
                 # Find the time index
@@ -258,7 +268,7 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
                 time = input_nc_f.variables['time'][:]
                 date_idx = (np.abs(time - num_days_since_epoch)).argmin()
                 input_ma = input_nc_f.variables[nc_var_name][date_idx,:,:].copy()
-                input_array = np.flipud(input_ma.data.astype(np.float32))
+                input_array = np.flipud(np.fliplr(input_ma.data.astype(np.float32)))
                 input_nodata = float(input_ma.fill_value)
                 input_array[input_array == input_nodata] = asset_nodata
                 array_to_geotiff(
@@ -311,6 +321,8 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
         if upload_flag:
             logging.info('  Uploading to bucket')
             args = ['gsutil', 'cp', upload_path, bucket_path]
+            print(upload_path)
+            print(bucket_path)
             if not logging.getLogger().isEnabledFor(logging.DEBUG):
                 args.insert(1, '-q')
             try:
@@ -336,7 +348,7 @@ def main(dataset, workspace, start_dt, end_dt, variables, overwrite_flag=False,
                             datetime.datetime.today().strftime('%Y-%m-%d')),
                         bucket_path
                     ], shell=shell_flag)
-                time.sleep(1)
+                sleep(1)
             except Exception as e:
                 logging.exception('    Exception: {}'.format(e))
 
@@ -570,7 +582,7 @@ def get_ee_tasks(states=['RUNNING', 'READY']):
             logging.info(
                 '  Error getting active task list, retrying ({}/10)\n'
                 '  {}'.format(i, e))
-            time.sleep(i ** 2)
+            sleep(i ** 2)
     return tasks
 
 
