@@ -131,7 +131,7 @@ def main(workspace, start_dt, end_dt, variables, overwrite_flag=False,
     logging.debug('Image Collection: {}'.format(asset_coll))
 
     # Start with a list of dates to check
-    logging.debug('\nBulding Date List')
+    logging.debug('\nBuilding Date List')
     # test_dt_list = [
     #     test_dt for test_dt in date_range(start_dt, end_dt)
     #     if start_dt <= test_dt <= end_dt]
@@ -139,9 +139,10 @@ def main(workspace, start_dt, end_dt, variables, overwrite_flag=False,
     if not test_dt_list:
         logging.info('  No test dates, exiting')
         return True
+    '''
     logging.debug('\nTest dates: {}'.format(
         ', '.join(map(lambda x: x.strftime('%Y-%m-%d'), test_dt_list))))
-
+    '''
     # Check if any of the needed dates are currently being ingested
     # Check task list before checking asset list in case a task switches
     #   from running to done before the asset list is retrieved.
@@ -297,11 +298,11 @@ def main(workspace, start_dt, end_dt, variables, overwrite_flag=False,
                 for band_i, variable in enumerate(variables):
                     data_array = raster_to_array(
                         os.path.join(date_ws, '{}.tif'.format(variable)))
-                    data_array[np.isnan(data_array)] = -9999
+                    data_array[np.isnan(data_array)] = asset_nodata
                     output_band = output_ds.GetRasterBand(band_i + 1)
                     output_band.WriteArray(data_array)
                     output_band.FlushCache()
-                    output_band.SetNoDataValue(-9999)
+                    output_band.SetNoDataValue(asset_nodata)
                     del data_array
                 output_ds = None
                 del output_ds
@@ -321,8 +322,6 @@ def main(workspace, start_dt, end_dt, variables, overwrite_flag=False,
         if upload_flag:
             logging.info('  Uploading to bucket')
             args = ['gsutil', 'cp', upload_path, bucket_path]
-            print(upload_path)
-            print(bucket_path)
             if not logging.getLogger().isEnabledFor(logging.DEBUG):
                 args.insert(1, '-q')
             try:

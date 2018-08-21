@@ -1,0 +1,13 @@
+p.c-error, div.c-error {
+    color:#FF007F;
+}
+
+.c-large {
+    font-size:large;
+}
+
+.c-vcenter {
+    display: inline-block;
+    vertical-align: middle;
+    float: none;
+}

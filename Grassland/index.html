@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!--css-->
+    <link rel="stylesheet" href="media/css/my_style.css">
+    <!--Bootstrap-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+    <!--jQuery-->
+    <script src="//code.jquery.com/jquery-3.1.0.min.js"></script>
+    <!--Highcharts-->
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/histogram-bellcurve.js"></script>
+    <script src="https://code.highcharts.com/highcharts-more.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <!--My Highcharts-->
+    <script src="media/myjs/utils.js"></script>
+    <script src="media/myjs/highcharts-functions.js"></script>
+
+	 <script type="text/javascript">
+   	 	$(document).ready(function () {
+			var data_dir = 'RESULTS/json/', 
+				var_names = ['ET', 'SoilMoist_1.0', 'SoilMoist_2.0', 'SoilMoist_3.0', 'Tmax', 'Tmin', 'precip'],
+				sample_points = sample_points = [
+    				'southern_NM','extreme_southwestern_NV',
+					'Aubrey_Valley','NE_of_Aubrey_Valley',
+					'near_Winslow_AZ','northwestern_NM_near_Farmington',
+					'western_UT','northwestern_CO',
+					'northeastern_NM','southeastern_CO',
+					'center_of_CO-NM_border','northwestern_UT',
+					'southern_NV','northcentral_NV',
+					'northeastern_NV','northwestern_NV',
+					'western_NV','center_of_UT-CO_border'
+				], 
+				stats = ['max', 'min', 'median', 'std'],
+				v_idx, v, p_idx, p, s_idx, s, c_num = 0, data_file;
+				//for (v_idx = 0; v_idx < var_names.length; v_idx++){
+				for (v_idx = 6; v_idx < 7; v_idx++){
+					v = var_names[v_idx];
+                    $('#var_name').html('Variable: ' + v)
+					for (s_idx = 0; s_idx < stats.length; s_idx++){
+					    //for (s_idx = 0; s_idx < 1; s_idx++){
+						s = stats[s_idx]
+						for (p_idx = 0; p_idx < sample_points.length; p_idx++){
+							p = sample_points[p_idx];
+							data_file = data_dir + p + '_doy_data.json';
+							c_num += 1;
+							cont = 'container-' + String(c_num);
+							plot_doy_data(cont, data_file, v, s, p);
+						}
+					}
+				}				
+		});
+	</script>
+</head>
+
+<body>
+<h1 align="center">Preliminary data analysis: Grassland</h1>
+<h2 id="var_name" align="center"></h2>
+	<h2 align="center">Max</h2>
+	<div="row">
+		<div class="col-md-4 c-vcenter">
+            <!--<h3>southern NM</h3>-->
+			<div id="container-1"></div>
+		</div>
+		<div class="col-md-4 c-vcenter">
+            <!--<h3>extreme southwesternNV</h3>-->
+            <div id="container-2"></div>
+        </div>
+		<div class="col-md-4 c-vcenter">
+            <!--<h3>Aubrey Valley</h3>-->
+            <div id="container-3"></div>
+        </div>		
+	</div>
+	<div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>NE of Aubrey Valley</h3>-->
+            <div id="container-4"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>near Winslow, AZ</h3>-->
+            <div id="container-5"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NM near Farmington</h3>-->
+            <div id="container-6"></div>
+        </div>      
+    </div>
+	<div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western UT</h3>-->
+            <div id="container-7"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern CO</h3>-->
+            <div id="container-8"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NM</h3>-->
+            <div id="container-9"></div>
+        </div>
+    </div>
+	<div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southeastern CO</h3>-->
+            <div id="container-10"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of CO-NM border</h3>-->
+            <div id="container-11"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern UT</h3>-->
+            <div id="container-12"></div>
+        </div>
+    </div>
+	<div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NV</h3>-->
+            <div id="container-13"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northcentral NV</h3>-->
+            <div id="container-14"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NV</h3>-->
+            <div id="container-15"></div>
+        </div>
+    </div>
+	<div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NV</h3>-->
+            <div id="container-16"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western NV</h3>-->
+            <div id="container-17"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of UT-CO border</h3>-->
+            <div id="container-18"></div>
+        </div>
+    </div>
+
+    <h2 align="center">Min</h2>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NM</h3>-->
+            <div id="container-19"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>extreme southwesternNV</h3>-->
+            <div id="container-20"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>Aubrey Valley</h3>-->
+            <div id="container-21"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>NE of Aubrey Valley</h3>-->
+            <div id="container-22"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>near Winslow, AZ</h3>-->
+            <div id="container-23"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NM near Farmington</h3>-->
+            <div id="container-24"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western UT</h3>-->
+            <div id="container-25"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern CO</h3>-->
+            <div id="container-26"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NM</h3>-->
+            <div id="container-27"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southeastern CO</h3>-->
+            <div id="container-28"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of CO-NM border</h3>-->
+            <div id="container-29"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern UT</h3>-->
+            <div id="container-30"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NV</h3>-->
+            <div id="container-31"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northcentral NV</h3>-->
+            <div id="container-32"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NV</h3>-->
+            <div id="container-33"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NV</h3>-->
+            <div id="container-34"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western NV</h3>-->
+            <div id="container-35"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of UT-CO border</h3>-->
+            <div id="container-36"></div>
+        </div>
+    </div>
+
+    <h2 align="center">Median</h2>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NM</h3>-->
+            <div id="container-37"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>extreme southwesternNV</h3>-->
+            <div id="container-38"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>Aubrey Valley</h3>-->
+            <div id="container-39"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>NE of Aubrey Valley</h3>-->
+            <div id="container-40"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>near Winslow, AZ</h3>-->
+            <div id="container-41"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NM near Farmington</h3>-->
+            <div id="container-42"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western UT</h3>-->
+            <div id="container-43"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern CO</h3>-->
+            <div id="container-44"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NM</h3>-->
+            <div id="container-45"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southeastern CO</h3>-->
+            <div id="container-46"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of CO-NM border</h3>-->
+            <div id="container-47"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern UT</h3>-->
+            <div id="container-48"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NV</h3>-->
+            <div id="container-49"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northcentral NV</h3>-->
+            <div id="container-50"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NV</h3>-->
+            <div id="container-51"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NV</h3>-->
+            <div id="container-52"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western NV</h3>-->
+            <div id="container-53"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of UT-CO border</h3>-->
+            <div id="container-54"></div>
+        </div>
+    </div>
+
+	<h2 align="center">Std</h2>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NM</h3>-->
+            <div id="container-55"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>extreme southwesternNV</h3>-->
+            <div id="container-56"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>Aubrey Valley</h3>-->
+            <div id="container-57"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>NE of Aubrey Valley</h3>-->
+            <div id="container-58"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>near Winslow, AZ</h3>-->
+            <div id="container-59"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NM near Farmington</h3>-->
+            <div id="container-60"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western UT</h3>-->
+            <div id="container-61"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern CO</h3>-->
+            <div id="container-62"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NM</h3>-->
+            <div id="container-63"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southeastern CO</h3>-->
+            <div id="container-64"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of CO-NM border</h3>-->
+            <div id="container-65"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern UT</h3>-->
+            <div id="container-66"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>southern NV</h3>-->
+            <div id="container-67"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northcentral NV</h3>-->
+            <div id="container-68"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northeastern NV</h3>-->
+            <div id="container-69"></div>
+        </div>
+    </div>
+    <div="row">
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>northwestern NV</h3>-->
+            <div id="container-70"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>western NV</h3>-->
+            <div id="container-71"></div>
+        </div>
+        <div class="col-md-4 c-vcenter">
+            <!--<h3>center of UT-CO border</h3>-->
+            <div id="container-72"></div>
+        </div>
+    </div>
+		
+</body>
+
+</html>
