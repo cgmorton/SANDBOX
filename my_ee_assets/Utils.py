@@ -5,12 +5,19 @@ from time import sleep
 import numpy as np
 import subprocess
 from osgeo import gdal, osr
+import netCDF4
+# Converting UTM to lon, lat
+from pyproj import Proj
+
+# FTP
+from ftplib import FTP
+# GOOGLE SHEETS
+from __future__ import print_function
+from googleapiclient.discovery import build
+from httplib2 import Http
+from oauth2client import file, client, tools
 
 import ee
-
-import netCDF4
-from ftplib import FTP
-
 
 from config import ds_settings
 
@@ -257,21 +264,52 @@ class DownloadUtil(object):
                 'data_file_path': self.data_file_path,
                 'outpath': self.ds_params['outpath']
             }
+        if self.download_method == 'gsheet':
+            self.args = {
+                'scopes': self.ds_params['scopes'],
+                'sheet_id': self.ds_params['sheet_id'],
+                'sheet_name': self.ds_params['data_sheet_name'],
+                'col_range': self.ds_params['data_col_range']
+            }
 
     def download(self):
         if self.download_method == 'ftp':
             self.ftp_download(**self.args)
+        if self.download_method == 'gsheet':
+            self.gsheet_download(**self.args)
+
+    def gsheet_download(self, **kwargs):
+        '''
+        Download a google sheet
+        :param kwargs:
+            scopes: needed for authentication
+            sheet_id: google sheet id (obtained from url)
+            sheet_name:
+            col_range: column range to be downloaded
+        :return:
+        '''
+        store = file.Storage('ghseet_token.json')
+        creds = store.get()
+        if not creds or creds.invalid:
+            flow = client.flow_from_clientsecrets('gsheet_credentials.json', kwargs['scopes'])
+            creds = tools.run_flow(flow, store)
+        service = build('sheets', 'v4', http=creds.authorize(Http()))
+        col_range = kwargs['sheet_name'] + '!' + kwargs['col_range']
+        result = service.spreadsheets().values().get(spreadsheetId=kwargs['sheet_id'],
+                                                     range=range).execute()
+        data = result.get('values', [])
+        # FIX ME?? Save to file --> ? .nc
+        return data
 
     def ftp_download(self, **kwargs):
         """
         Downloads one file from ftp server
-        Parameters:
-            kwargs:
-                site_url: ftp server
-                site folder: data folder on ftp server
-                file_name
-                output_patth: local path to which file will be downloaded
-        Returns:
+        :param kwargs:
+            site_url: ftp server
+            site folder: data folder on ftp server
+            file_name
+            output_patth: local path to which file will be downloaded
+        :return:
         """
         try:
             ftp = FTP()

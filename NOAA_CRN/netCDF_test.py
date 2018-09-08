@@ -6,6 +6,8 @@ import datetime as dt
 import numpy as np
 from osgeo import gdal, osr
 
+from config import ds_settings
+
 
 def days_since_epoch_to_date_str(epoch, numdays):
     '''
@@ -98,38 +100,49 @@ def array_to_geotiff(output_array, output_path, output_shape, output_geo,
     output_ds = None
 
 if __name__ == '__main__':
-    '''
-    # var_name = 'Smois_05cm'
-    var_name = 'Soiltemp_05cm'
-    infile = var_name + '_all.nc'
-    ds = Dataset('/Volumes/DHS/NOAA_CRN/nc/' + infile, 'r')
-    #print ds.variables['SMOIS_05CM'][:][:][:]
-    for t_idx, t in enumerate(ds.variables['time'][300:301]):
-        for lat_idx, lat in enumerate(ds.variables['lat'][:]):
-            for lon_idx, lon in enumerate(ds.variables['lon'][:]):
-                print ds.variables[var_name.upper()][t_idx][lat_idx][lon_idx]
-    print(ds.variables)
-    '''
+    ds_params = ds_settings['NOAA_CRN']
+    site_url = ds_params['ftp_server']
+    site_folder = ds_params['ftp_folder']
     var_name = 'Smois_05cm'
+    #var_name = 'Precip'
     infile = var_name + '_all.nc'
-    day_idx = 4000
     infile_path = '/Volumes/DHS/NOAA_CRN/nc/' + infile
-    outfile_name =  var_name + '_' + str(day_idx) + '.tif'
-
+    '''
+    outfile = os.path.join(ds_params['outpath'], infile)
+    if not os.path.isfile(outfile):
+        print('  Downloading the file ' + infile)
+        ftp_download(site_url, site_folder, infile, outfile)
+    '''
+    # read file
     ds = Dataset(infile_path, 'r')
     lons = ds.variables['lon'][:]
     lats = ds.variables['lat'][:]
     shape = (lats.shape[0], lons.shape[0])
+    nc_var_name = ds.variables.keys()[0]
     geo = get_geo(lons, lats)
     print ds.variables
     print('GEO ' + str(geo))
     asset_osr = osr.SpatialReference()
     asset_osr.ImportFromEPSG(4326)
     proj = asset_osr.ExportToWkt()
-    tif_path = os.path.join(os.getcwd(), outfile_name)
     nc_var_name = ds.variables.keys()[0]
-    input_ma = ds.variables[nc_var_name][day_idx,:,:].copy()
-    input_array = np.fliplr(np.flipud(input_ma.data.astype(np.float32)))
-    input_nodata = float(input_ma.fill_value)
-    input_array[input_array == input_nodata] = -9999
-    array_to_geotiff(input_array,tif_path,shape,geo,proj,output_nodata=-9999)
+    for day_idx in range(5):
+        outfile_name =  var_name + '_' + str(day_idx) + '.tif'
+        tif_path = os.path.join(os.getcwd(), outfile_name)
+        input_ma = ds.variables[nc_var_name][day_idx,:,:].copy()
+        input_array = np.fliplr(np.flipud(input_ma.data.astype(np.float32)))
+        input_nodata = float(input_ma.fill_value)
+        input_array[input_array == input_nodata] = -9999
+        print input_array[input_array != -9999].shape
+        print input_array[input_array == -9999].shape
+        #array_to_geotiff(input_array,tif_path,shape,geo,proj,output_nodata=-9999)
+
+    '''
+    for t_idx, t in enumerate(time):
+        print t
+        print days_since_epoch_to_date_str(epoch, t_idx)
+        date_dt = days_since_epoch_to_date_dt(epoch,t_idx)
+        num_days_since_epoch = dt_to_days_since_epoch(epoch, date_dt)
+        idx = (np.abs(time - num_days_since_epoch)).argmin()
+        print idx
+    '''
