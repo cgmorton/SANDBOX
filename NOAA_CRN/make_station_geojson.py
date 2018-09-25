@@ -17,16 +17,36 @@ if __name__ == '__main__':
     with open(stn_names, 'r') as in_file:
         rdr = csv.reader(in_file, delimiter=' ')
         for row_idx, row in enumerate(rdr):
+            stn_lon = None; stn_lat = None
             #t = ','.join(row[0].split('\t'))
             l = row[0].split('\t')
             stn_id = l[0]; stn_state = l[1]; stn_name = l[2]
+            stn_id_int = None
+            try:
+                stn_id_int = int(float(stn_id))
+            except:
+                continue
+            print stn_id
             # Grab station lon/lats
             # '96404.0\t 62.7400\t -141.210\r'
-            stn_loc_line = loc_lines[row_idx].replace('\r', '').split('\t ')
-            if int(float(stn_loc_line[0])) != int(float(stn_id)):
-                print('Something is up!')
-            stn_lon = round(float(stn_loc_line[2]),4)
-            stn_lat = round(float(stn_loc_line[1]),4)
+            #stn_loc_line = loc_lines[row_idx].replace('\r', '').split('\t ')
+            for loc in loc_lines:
+                stn_loc_line = loc.replace('\r', '').split('\t ')
+                stn_loc_line_id_int = None
+                try:
+                    stn_loc_line_id_int = int(float(stn_loc_line[0]))
+                except:
+                    continue
+                if stn_id_int != stn_loc_line_id_int:
+                    continue
+                else:
+                    stn_lon = round(float(stn_loc_line[2]),4)
+                    stn_lat = round(float(stn_loc_line[1]),4)
+                    break
+            if not stn_lat or not stn_lon:
+                print('Can not find station in stn_lon_lat file: ' + stn_id)
+                continue
+
             feat_data = {
                 'type': 'Feature',
                 'properties': {
