@@ -11,32 +11,33 @@ import config
 
 if __name__ == '__main__':
     # start_time = time.time()
-    DB_USER = os.environ['MY_DB_USER']
-    DB_PASSWORD = os.environ['MY_DB_PASSWORD']
-    DB_PORT = os.environ['MY_DB_PORT']
-    DB_HOST = os.environ['MY_DB_HOST']
-    DB_NAME = os.environ['MY_DB_NAME']
+    DB_USER = os.environ['DB_USER']
+    DB_PASSWORD = os.environ['DB_PASSWORD']
+    DB_PORT = os.environ['DB_PORT']
+    DB_HOST = os.environ['DB_HOST']
+    DB_NAME = os.environ['DB_NAME']
 
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
     db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
 
-    '''
+
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-    '''
+
+
     start_time = time.time()
 
     # print(Base.metadata.sorted_tables)
     datasets = ['SSEBop']
     user_id = 0
-    regions = ["Mason", "US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
-    for rgn in regions[1:2]:
+    regions = ["US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
+    for rgn in regions[0:2]:
         for ds in datasets:
             s_year = int(config.statics['all_year'][ds][0])
             e_year = int(config.statics['all_year'][ds][1])
             years = range(s_year, e_year)
-            for year_int in years[0:1]:
+            for year_int in years:
                 year = str(year_int)
                 DB_Util = db_methods.database_Util(rgn, ds, year, user_id, engine)
                 DB_Util.add_data_to_db()

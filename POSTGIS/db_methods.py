@@ -228,12 +228,15 @@ class database_Util(object):
         :return:
         '''
         url = self.data_bucket_url + self.dataset + '/' + self.dataFName
-        print url
+        print('Reading data from bucket file ' + url)
+        d = json.load(urllib2.urlopen(url))
+        '''
         try:
             d = json.load(urllib2.urlopen(url))
         except Exception as e:
             logging.error(e)
             raise Exception(e)
+        '''
         return d
 
     def add_in_chunks(self, entity_list):
@@ -271,13 +274,18 @@ class database_Util(object):
             'year': self.year,
             'temporal_resolution': 'monthly',
             'variabke': 'et',
-            'feat_list': [f_idx]
+            'feature_index_list': [f_idx]
         }, self.db_engine)
         QU.start_session()
-        data = QU.query_geom_by_name(geom_name)
+        '''
+        NOTE: if we don't json.loads here, 
+        len(json_data) is always > 0, hence in_db will always be true
+        '''
+        json_data = json.loads(QU.query_geom_by_name(geom_name))
         QU.end_session()
-        if len(data) >= 1:
+        if len(json_data) != 0:
             in_db = True
+        print(in_db)
         return in_db
 
     def set_postgis_geometry(self, shapely_geom):
@@ -510,7 +518,10 @@ class database_Util(object):
         # Loop over features in bucket file, do in chunks
         # Oherwise we get a kill9 error
         chunk_size = config.statics['ingest_chunk_size']
-        num_chunks = len(etdata['features']) / chunk_size
+        if chunk_size <= len(etdata['features']):
+            num_chunks = len(etdata['features']) / chunk_size
+        else:
+            num_chunks = 1
         #Open db connection
         # Needed to bulk copy from csv
         conn = self.session.connection()  # SQLAlchemy Connection
@@ -528,6 +539,8 @@ class database_Util(object):
             csv_dwriter = csv.writer(csv_data, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             idx_start = (chunk - 1) * chunk_size
             idx_end = chunk * chunk_size
+            if idx_end > len(etdata['features']):
+                idx_end = len(etdata['features'])
             for f_idx in range(idx_start, idx_end):
                 # assign unique geom_name using region and feature index
                 geom_name = self.region + '_' + str(f_idx)
@@ -609,6 +622,7 @@ class database_Util(object):
         conn.close()
 
 class date_Util(object):
+
     def get_month(self, t_res, data_var):
         '''
         :param t_res: temporal resolution
@@ -716,14 +730,14 @@ class query_Util(object):
         return json_data
 
     def get_query_data(self):
-        feat_list = self.tv_vars['features']
+        feature_index_list = self.tv_vars['features']
         rgn = self.tv_vars['region']
         # Set the dates list from temporal_resolution
         DU = date_Util()
         dates_list = DU.set_datetime_dates_list(self.tv_vars)
 
         # Set the geom_names from region and feature index
-        geom_names = [rgn + '_' + str(f_idx) for f_idx in feat_list]
+        geom_names = [rgn + '_' + str(f_idx) for f_idx in feature_index_list]
         rgn_id = config.statics['db_id_region'][rgn]
         '''
         # Not working
@@ -768,13 +782,13 @@ class query_Util(object):
 
         # Working!
         # Query geometry table
-        if len(feat_list) == 1 and feat_list[0] == 'all':
+        if len(feature_index_list) == 1 and feature_index_list[0] == 'all':
             geom_query = self.session.query(Geom).filter(
                 Geom.user_id == 0,
                 Geom.region_id == rgn_id
             )
         else:
-            geom_names = [rgn + '_' + str(f_idx) for f_idx in feat_list]
+            geom_names = [rgn + '_' + str(f_idx) for f_idx in feature_index_list]
             geom_query = self.session.query(Geom).filter(
                 Geom.user_id == 0,
                 Geom.region_id == rgn_id,
