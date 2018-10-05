@@ -103,10 +103,10 @@ if __name__ == '__main__':
     ds_params = ds_settings['NOAA_CRN']
     site_url = ds_params['ftp_server']
     site_folder = ds_params['ftp_folder']
-    var_name = 'Smois_05cm'
+    var_name = 'Sur_temp_min'
     #var_name = 'Precip'
     infile = var_name + '_all.nc'
-    infile_path = '/Volumes/DHS/NOAA_CRN/nc/' + infile
+    infile_path = '/Volumes/DHS/TEST_NOAA_CRN/nc/' + infile
     '''
     outfile = os.path.join(ds_params['outpath'], infile)
     if not os.path.isfile(outfile):
@@ -117,15 +117,18 @@ if __name__ == '__main__':
     ds = Dataset(infile_path, 'r')
     lons = ds.variables['lon'][:]
     lats = ds.variables['lat'][:]
+    time = ds.variables['time'][:]
+    epoch = '20060101'
     shape = (lats.shape[0], lons.shape[0])
-    nc_var_name = ds.variables.keys()[0]
     geo = get_geo(lons, lats)
-    print ds.variables
+    print(ds.variables)
     print('GEO ' + str(geo))
     asset_osr = osr.SpatialReference()
     asset_osr.ImportFromEPSG(4326)
     proj = asset_osr.ExportToWkt()
-    nc_var_name = ds.variables.keys()[0]
+    print(ds.variables.keys())
+    '''
+    nc_var_name = list(ds.variables.keys())[0]
     for day_idx in range(5):
         outfile_name =  var_name + '_' + str(day_idx) + '.tif'
         tif_path = os.path.join(os.getcwd(), outfile_name)
@@ -133,16 +136,15 @@ if __name__ == '__main__':
         input_array = np.fliplr(np.flipud(input_ma.data.astype(np.float32)))
         input_nodata = float(input_ma.fill_value)
         input_array[input_array == input_nodata] = -9999
-        print input_array[input_array != -9999].shape
-        print input_array[input_array == -9999].shape
+        # print(input_array[input_array != -9999].shape)
+        # print(input_array[input_array == -9999].shape)
         #array_to_geotiff(input_array,tif_path,shape,geo,proj,output_nodata=-9999)
 
     '''
     for t_idx, t in enumerate(time):
-        print t
-        print days_since_epoch_to_date_str(epoch, t_idx)
+        print(t)
+        print(days_since_epoch_to_date_str(epoch, t_idx))
         date_dt = days_since_epoch_to_date_dt(epoch,t_idx)
         num_days_since_epoch = dt_to_days_since_epoch(epoch, date_dt)
         idx = (np.abs(time - num_days_since_epoch)).argmin()
-        print idx
-    '''
+        # print(idx)
