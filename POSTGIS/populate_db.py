@@ -21,11 +21,10 @@ if __name__ == '__main__':
     db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
 
-
+    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-
-
+    '''
     start_time = time.time()
 
     # print(Base.metadata.sorted_tables)
@@ -41,8 +40,6 @@ if __name__ == '__main__':
                 year = str(year_int)
                 DB_Util = db_methods.database_Util(rgn, ds, year, user_id, engine)
                 DB_Util.add_data_to_db()
-                db_str = '/'.join([rgn, ds, year])
-                print('Uploaded: ' + db_str)
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))

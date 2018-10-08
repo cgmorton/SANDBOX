@@ -111,6 +111,8 @@ class Data(Base):
     __tablename__ = 'data'
     id = db.Column(db.Integer(), primary_key=True)
     geom_id = db.Column(db.Integer(), db.ForeignKey('geom.id'), nullable=False)
+    geom_name = db.Column(db.String()) #should be foreign key tp geom.name but gives error when creating
+    year = db.Column(db.Integer())
     dataset_id =  db.Column(db.Integer(), db.ForeignKey('dataset.id'), nullable=False)
     variable_id =  db.Column(db.Integer(), db.ForeignKey('variable.id'), nullable=False)
     temporal_resolution = db.Column(db.String())
@@ -150,11 +152,24 @@ class database_Util(object):
         self.dataFName = region + '_' + year + '_DATA'  '.json'
 
 
+
+    def start_session(self):
         # Set up the db session
         Session = session_module.sessionmaker()
         Session.configure(bind=self.db_engine)
         self.session = Session()
 
+    def end_session(self):
+        self.session.close()
+
+    def object_as_dict(self, obj):
+        '''
+        Converts single db query object to dict
+        :param obj:
+        :return: query dict
+        '''
+        return {c.key: getattr(obj, c.key)
+                for c in inspect(obj).mapper.column_attrs}
 
     def set_shell_flag(self):
         if os.name == 'posix':
@@ -273,19 +288,15 @@ class database_Util(object):
             'dataset': self.dataset,
             'year': self.year,
             'temporal_resolution': 'monthly',
-            'variabke': 'et',
+            'variable': 'et',
             'feature_index_list': [f_idx]
-        }, self.db_engine)
-        QU.start_session()
+        }, self.db_engine, self.session)
         '''
         NOTE: if we don't json.loads here, 
         len(json_data) is always > 0, hence in_db will always be true
         '''
-        json_data = json.loads(QU.query_geom_by_name(geom_name))
+        in_db = QU.check_if_data_in_db(geom_name)
         QU.end_session()
-        if len(json_data) != 0:
-            in_db = True
-        print(in_db)
         return in_db
 
     def set_postgis_geometry(self, shapely_geom):
@@ -404,6 +415,8 @@ class database_Util(object):
             'id': 1, # int
             'user_id': # foreign key int,
             'geom_id': # foreign key int,
+            'geom_name': #foreign key str, uniquely identifies geometry: region + feat_idx
+            'year': int,
             'dataset_id': # foreign key int,
             'variable_id': # foreign key int,
             'temporal_resolution': '',
@@ -414,6 +427,8 @@ class database_Util(object):
         '''
         return Data(**data_dict)
 
+
+
     def add_data_to_db(self):
         '''
         Add data to database
@@ -423,19 +438,13 @@ class database_Util(object):
         etdata = self.read_etdata_from_bucket()
         geojson_data = self.read_geodata_from_bucket()
 
-        # Will store Data and GeomMetadat table rows
-        db_data = []
-        db_geom_metadata = []
-
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
-        try:
-            q = self.session.query(Data).first()
-            if q:
-                db_empty = False
-            else:
-                db_empty = True
-        except:
+        db_empty = False
+        self.start_session()
+
+        q = self.session.query(Data).first()
+        if q is None:
             db_empty = True
 
         if db_empty:
@@ -522,16 +531,17 @@ class database_Util(object):
             num_chunks = len(etdata['features']) / chunk_size
         else:
             num_chunks = 1
-        #Open db connection
+
+        if len(etdata['features']) / chunk_size:
+            num_chunks += 1
+        chunk = 1
+        print('Adding data in ' + str(num_chunks) + ' chunk(s) to database.')
+        # Open db connection
         # Needed to bulk copy from csv
         conn = self.session.connection()  # SQLAlchemy Connection
         dbapi_conn = conn.connection  # DBAPI connection (technically a connection pool wrapper called ConnectionFairy, but everything is there)
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
 
-        if len(etdata['features']) / chunk_size:
-            num_chunks += 1
-        chunk = 1
-        print('Adding data in ' + str(num_chunks) + ' to database.')
         while chunk <= num_chunks:
             csv_metadata = open('metadata.csv', 'wb+')
             csv_data = open('data.csv', 'wb+')
@@ -548,7 +558,7 @@ class database_Util(object):
                 if not db_empty:
                     in_db = self.check_if_in_db(f_idx)
                 if in_db:
-                    print(geom_name + ' found in db. Skipping...')
+                    print(geom_name + '/' + str(self.year)  + ' found in db. Skipping...')
                     continue
 
                 f_data = etdata['features'][f_idx]
@@ -598,27 +608,32 @@ class database_Util(object):
                                 data_value = float(f_data['properties'][var + '_' + data_var])
                             except:
                                 data_value = -9999
-
-                            csv_dwriter.writerow([geom_id, dataset_id, variable_id, temporal_resolution, data_date, data_value])
+                            row = [geom_id, geom_name, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
+                            csv_dwriter.writerow(row)
             csv_metadata.close()
             csv_data.close()
 
             # Commit the geom metadata and data for all features
             # NOTE: committing all kills 9, try chunking
+            with open('data.csv', 'r') as f:
+                if os.stat("data.csv").st_size != 0:
+                    cols = ('geom_id', 'geom_name', 'year', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
+                    cursor.copy_from(f, 'data', sep=',', columns=cols)
+                    print('Added Data tables for features')
+
             with open('metadata.csv', 'r') as f:
                 if os.stat("metadata.csv").st_size != 0:
                     cols = ('geom_id', 'name', 'properties')
                     cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
                     print('Added GeomMetadata table rows for features')
-            with open('data.csv', 'r') as f:
-                if os.stat("data.csv").st_size != 0:
-                    cols = ('geom_id', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
-                    cursor.copy_from(f, 'data', sep=',', columns=cols)
-                    print('Added Data tables for features')
             os.remove('metadata.csv')
             os.remove('data.csv')
             chunk += 1
-        # Close the connection
+
+        # Commit all additions to database
+        self.session.commit()
+        # Close the connection and session
+        self.end_session()
         conn.close()
 
 class date_Util(object):
@@ -681,9 +696,10 @@ class query_Util(object):
     '''
     Class to support API queries
     '''
-    def __init__(self, tv_vars, db_engine):
+    def __init__(self, tv_vars, db_engine, session):
         self.tv_vars = tv_vars
         self.db_engine = db_engine
+        self.session = session
 
         '''
         # Set up the db session
@@ -715,6 +731,27 @@ class query_Util(object):
         '''
         return {c.key: getattr(obj, c.key)
                 for c in inspect(obj).mapper.column_attrs}
+
+    def check_if_data_in_db(self, geom_name):
+        if self.session is None:
+            session =  self.start_session()
+        else:
+            session = self.session
+        data_query = session.query(Data).filter(
+            Data.geom_name == geom_name,
+            Data.year == int(self.tv_vars['year']),
+            Data.dataset_id == config.statics['db_id_dataset'][self.tv_vars['dataset']],
+            Data.temporal_resolution == self.tv_vars['temporal_resolution'],
+            Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']],
+        )
+        if self.session is None:
+            self.end_session()
+
+        if len(data_query.all()) != 0:
+            return True
+        else:
+            return False
+
 
     def query_geom_by_name(self, geom_name):
         geom_query = self.session.query(Geom).filter(
