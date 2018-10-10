@@ -74,6 +74,7 @@ class Geom(Base):
     __tablename__ = 'geom'
     id = db.Column(db.Integer(), primary_key=True)
     user_id = db.Column(db.Integer())
+    year = db.Column(db.Integer())
     region_id = db.Column(db.Integer())
     name = db.Column(db.String())
     type = db.Column(db.String())
@@ -135,7 +136,7 @@ class database_Util(object):
         :year year of geojson dataset, might be ALL if not USFields
             USField geojsons change every year
     '''
-    def __init__(self, region, dataset, year, user_id, db_engine):
+    def __init__(self, region, dataset, year, user_id, db_engine, region_changing_by_year):
         self.region = region
         self.year = int(year)
         self.dataset = dataset
@@ -143,6 +144,7 @@ class database_Util(object):
         self.geo_bucket_url = config.GEO_BUCKET_URL
         self.data_bucket_url = config.DATA_BUCKET_URL
         self.db_engine = db_engine
+        self.region_changing_by_year = region_changing_by_year
         # Used to read geometry data from buckets
         if self.region in ['Mason', 'US_fields']:
             # Field boundaries depend on years
@@ -279,7 +281,7 @@ class database_Util(object):
                 raise
             num_added = end
 
-    def check_if_in_db(self, f_idx):
+    def check_if_data_in_db(self, f_idx):
         # Check if this entry is already in db
         in_db =  False
         geom_name = self.region + '_' + str(f_idx)
@@ -299,6 +301,19 @@ class database_Util(object):
         QU.end_session()
         return in_db
 
+    def check_if_geom_in_db(self, geom_name, year):
+        geom_query = self.session.query(Geom).filter(
+            Geom.name == geom_name,
+            Geom.year == year
+        )
+        if len(geom_query.all()) == 0:
+            return None
+        if len(geom_query.all()) > 1:
+            logging.error('Multiple geometries for ' + geom_name + '/' + str(year))
+            return -9999
+        geom_id = geom_query.first().id
+        return geom_id
+
     def set_postgis_geometry(self, shapely_geom):
         postgis_geom = None
         if shapely_geom.geom_type == 'Polygon':
@@ -310,68 +325,21 @@ class database_Util(object):
         return postgis_geom
 
     def set_user_entity(self, user_dict):
-        '''
-        # Note: primary key set manually
-        user_dict_template = {
-            'id': # int,
-            'name': '',
-            'email': '',
-            'last_login': #datetime,
-            'joined': '',
-            'ip': '',
-            'password': '',
-            'notes': '',
-            'active': '',
-            'role': ''
-        }
-        '''
         return User(**user_dict)
 
     def set_region_entity(self, region_dict):
-        '''
-         # Note: primary key set manually
-        region_dict_template = {
-            'id': # int,
-            'name': ''
-        }
-        '''
         return Region(**region_dict)
 
     def set_dataset_entity(self, dataset_dict):
-        '''
-         # Note: primary key set manually
-        dataset_dict_template = {
-            'id': #int,
-            'name': '',
-            'ee_collection': ''
-        }
-        '''
         return Dataset(**dataset_dict)
 
     def set_variable_entity(self, variable_dict):
-        '''
-         # Note: primary key set manually
-        variable_dict_template = {
-            'id': #int,
-            'name': '',
-            'units': ''
-        }
-        '''
         return Variable(**variable_dict)
 
     def set_geom_metadata_entity(self, metadata_dict):
-        '''
-         # Note: primary key set manually
-        metadata_dict_template = {
-            'id': 1, # int
-            'geom_id': # foreign key int,
-            'name': '',
-            'properties': ''
-        }
-        '''
         return GeomMetadata(**metadata_dict)
 
-    def set_and_add_geom_entity(self, geom_name, geom_type, postgis_geom):
+    def set_and_add_geom_entity(self, geom_name, geom_type, postgis_geom, year):
         '''
         Adds the geometry row to database and retrieves the automatically
         assigned primary key geom_id
@@ -379,6 +347,7 @@ class database_Util(object):
         '''
         geometry = Geom(
             user_id=self.user_id,
+            year=int(year),
             region_id=config.statics['db_id_region'][self.region],
             name=geom_name,
             type=geom_type,
@@ -556,29 +525,36 @@ class database_Util(object):
                 geom_name = self.region + '_' + str(f_idx)
                 in_db = False
                 if not db_empty:
-                    in_db = self.check_if_in_db(f_idx)
+                    in_db = self.check_if_data_in_db(f_idx)
                 if in_db:
-                    print(geom_name + '/' + str(self.year)  + ' found in db. Skipping...')
+                    print(geom_name + '/' + str(self.year)  + ' data found in db. Skipping...')
                     continue
 
                 f_data = etdata['features'][f_idx]
                 g_data = geojson_data['features'][f_idx]
 
                 print('Adding Feature '  + str(f_idx + 1))
-                # Geometry data table
-                # Convert the geojson geometry to postgis geometry using shapely
-                # Note: we convert polygons to multi polygon
-                # Convert to shapely shape
-                shapely_geom = asShape(g_data['geometry'])
-                postgis_geom = self.set_postgis_geometry(shapely_geom)
-                if postgis_geom is None:
-                    raise Exception('Not a valid geometry, must be polygon or multi polygon!')
 
-                # Add the geometry table entry for this feature and obtain the
-                geom_id = self.set_and_add_geom_entity(geom_name, shapely_geom.geom_type, postgis_geom)
+                # Geometry data table
+                # check if the geometry is already in the database
+                if self.region_changing_by_year:
+                    year = self.year
+                else:
+                    year = 9999
+                geom_id = self.check_if_geom_in_db(geom_name, year)
+                if not geom_id:
+                    # Convert the geojson geometry to postgis geometry using shapely
+                    # Note: we convert polygons to multi polygon
+                    # Convert to shapely shape
+                    shapely_geom = asShape(g_data['geometry'])
+                    postgis_geom = self.set_postgis_geometry(shapely_geom)
+                    if postgis_geom is None:
+                        raise Exception('Not a valid geometry, must be polygon or multi polygon!')
+                    # Add the geometry table entry for this feature and obtain the geometry id
+                    geom_id = self.set_and_add_geom_entity(geom_name, shapely_geom.geom_type, postgis_geom, year)
+
                 logging.info('Added Geometry table')
                 print('Added Geometry row')
-
                 # Set the geometry metadata and data tables for bulk ingest
                 for key in config.statics['geom_meta_cols'][self.region]:
                     try:
@@ -767,7 +743,7 @@ class query_Util(object):
         return json_data
 
     def get_query_data(self):
-        feature_index_list = self.tv_vars['features']
+        feature_index_list = self.tv_vars['feature_index_list']
         rgn = self.tv_vars['region']
         # Set the dates list from temporal_resolution
         DU = date_Util()

@@ -80,6 +80,7 @@
     "etr": "mm",
     "pr": "mm"
   },
+  "regions_changing_by_year": [],
   "db_id_region": {
     "US_states_west_500k": 1,
     "US_counties_west_500k": 2,

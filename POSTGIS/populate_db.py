@@ -25,6 +25,7 @@ if __name__ == '__main__':
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
     '''
+
     start_time = time.time()
 
     # print(Base.metadata.sorted_tables)
@@ -32,14 +33,19 @@ if __name__ == '__main__':
     user_id = 0
     regions = ["US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
     for rgn in regions[0:2]:
+        geom_change_by_year = False
+        if rgn in config.statics['regions_changing_by_year']:
+            geom_change_by_year = True
         for ds in datasets:
             s_year = int(config.statics['all_year'][ds][0])
             e_year = int(config.statics['all_year'][ds][1])
             years = range(s_year, e_year)
             for year_int in years:
                 year = str(year_int)
-                DB_Util = db_methods.database_Util(rgn, ds, year, user_id, engine)
+                DB_Util = db_methods.database_Util(rgn, ds, year, user_id, engine, geom_change_by_year)
                 DB_Util.add_data_to_db()
+    
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
+
