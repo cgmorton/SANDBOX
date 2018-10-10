@@ -21,10 +21,10 @@ if __name__ == '__main__':
     db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
 
-    '''
+
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-    '''
+
 
     start_time = time.time()
 

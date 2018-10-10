@@ -82,6 +82,7 @@
   },
   "regions_changing_by_year": [],
   "db_id_region": {
+    "Custom": 0,
     "US_states_west_500k": 1,
     "US_counties_west_500k": 2,
     "Mason": 3,
@@ -113,7 +114,7 @@
     "region",
     "dataset",
     "variable",
-    "feat_idx"
+    "feature_index"
   ],
   "var_data_by_tres":{
     "annual": ["annual"],
@@ -156,5 +157,6 @@
         "US_HUC6_west": ["AREASQKM", "STATES", "HUC2", "NAME"],
         "US_HUC8_west": ["AREASQKM", "STATES", "HUC2", "NAME"],
         "US_HUC10_west": ["AREASQKM", "STATES", "HUC2", "NAME"]
-    }
+  },
+  "geom_name_keys": ["NAME", "HUC8_NAME"]
 }

@@ -76,8 +76,10 @@ class Geom(Base):
     user_id = db.Column(db.Integer())
     year = db.Column(db.Integer())
     region_id = db.Column(db.Integer())
+    feature_index =  db.Column(db.Integer())
     name = db.Column(db.String())
     type = db.Column(db.String())
+    area = db.Column(db.Float(precision=4))
     coords = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
     '''
     FIX ME: I don't know how to implement that in dbSCHEMA or pgADMIN
@@ -113,6 +115,7 @@ class Data(Base):
     id = db.Column(db.Integer(), primary_key=True)
     geom_id = db.Column(db.Integer(), db.ForeignKey('geom.id'), nullable=False)
     geom_name = db.Column(db.String()) #should be foreign key tp geom.name but gives error when creating
+    geom_area = db.Column(db.Float(precision=4))
     year = db.Column(db.Integer())
     dataset_id =  db.Column(db.Integer(), db.ForeignKey('dataset.id'), nullable=False)
     variable_id =  db.Column(db.Integer(), db.ForeignKey('variable.id'), nullable=False)
@@ -301,18 +304,20 @@ class database_Util(object):
         QU.end_session()
         return in_db
 
-    def check_if_geom_in_db(self, geom_name, year):
+    def check_if_geom_in_db(self, region, f_idx, year):
         geom_query = self.session.query(Geom).filter(
-            Geom.name == geom_name,
+            Geom.region_id == config.statics['db_id_region'][region],
+            Geom.feature_index == int(f_idx),
             Geom.year == year
         )
         if len(geom_query.all()) == 0:
-            return None
+            return None, None
         if len(geom_query.all()) > 1:
-            logging.error('Multiple geometries for ' + geom_name + '/' + str(year))
-            return -9999
+            logging.error('Multiple geometries for ' + region + '/' + str(f_idx) + '/' + str(year))
+            return -9999, None
         geom_id = geom_query.first().id
-        return geom_id
+        geom_area = round(geom_query.first().area, 4)
+        return geom_id, geom_area
 
     def set_postgis_geometry(self, shapely_geom):
         postgis_geom = None
@@ -339,7 +344,7 @@ class database_Util(object):
     def set_geom_metadata_entity(self, metadata_dict):
         return GeomMetadata(**metadata_dict)
 
-    def set_and_add_geom_entity(self, geom_name, geom_type, postgis_geom, year):
+    def set_and_add_geom_entity(self, feat_idx, geom_name, geom_type, postgis_geom, year, area):
         '''
         Adds the geometry row to database and retrieves the automatically
         assigned primary key geom_id
@@ -349,8 +354,10 @@ class database_Util(object):
             user_id=self.user_id,
             year=int(year),
             region_id=config.statics['db_id_region'][self.region],
+            feature_index=feat_idx,
             name=geom_name,
             type=geom_type,
+            area=area,
             coords=postgis_geom
         )
         # Submit the geom table to obtain the primary key geom_id
@@ -366,34 +373,9 @@ class database_Util(object):
 
 
     def set_parameter_entity(self, parameter_dict):
-        '''
-         # Note: primary key set manually
-        parameter_dict_template = {
-            'id': 1, # int
-            'dataset_id': # foreign key int,
-            'name': '',
-            'properties': ''
-        }
-        '''
         return Parameter(**parameter_dict)
 
     def set_data_entity(selfself, data_dict):
-        '''
-         # Note: primary key is AUTOSET in db
-         data_dict_template = {
-            'id': 1, # int
-            'user_id': # foreign key int,
-            'geom_id': # foreign key int,
-            'geom_name': #foreign key str, uniquely identifies geometry: region + feat_idx
-            'year': int,
-            'dataset_id': # foreign key int,
-            'variable_id': # foreign key int,
-            'temporal_resolution': '',
-            'data_date': #datetime,
-            'data_value': # float,
-
-         }
-        '''
         return Data(**data_dict)
 
 
@@ -521,8 +503,13 @@ class database_Util(object):
             if idx_end > len(etdata['features']):
                 idx_end = len(etdata['features'])
             for f_idx in range(idx_start, idx_end):
-                # assign unique geom_name using region and feature index
-                geom_name = self.region + '_' + str(f_idx)
+                # Find the geometry name
+                geom_name = 'Not found'
+                for name_prop in config.statics['geom_name_keys']:
+                    try:
+                        geom_name = geojson_data['features'][f_idx]['properties'][name_prop]
+                    except:
+                        continue
                 in_db = False
                 if not db_empty:
                     in_db = self.check_if_data_in_db(f_idx)
@@ -541,17 +528,18 @@ class database_Util(object):
                     year = self.year
                 else:
                     year = 9999
-                geom_id = self.check_if_geom_in_db(geom_name, year)
+                geom_id, geom_area = self.check_if_geom_in_db(self.region, f_idx, year)
                 if not geom_id:
                     # Convert the geojson geometry to postgis geometry using shapely
                     # Note: we convert polygons to multi polygon
                     # Convert to shapely shape
                     shapely_geom = asShape(g_data['geometry'])
+                    geom_area = shapely_geom.area
                     postgis_geom = self.set_postgis_geometry(shapely_geom)
                     if postgis_geom is None:
                         raise Exception('Not a valid geometry, must be polygon or multi polygon!')
                     # Add the geometry table entry for this feature and obtain the geometry id
-                    geom_id = self.set_and_add_geom_entity(geom_name, shapely_geom.geom_type, postgis_geom, year)
+                    geom_id = self.set_and_add_geom_entity(f_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
 
                 logging.info('Added Geometry table')
                 print('Added Geometry row')
@@ -584,7 +572,7 @@ class database_Util(object):
                                 data_value = float(f_data['properties'][var + '_' + data_var])
                             except:
                                 data_value = -9999
-                            row = [geom_id, geom_name, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
+                            row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
                             csv_dwriter.writerow(row)
             csv_metadata.close()
             csv_data.close()
@@ -593,7 +581,7 @@ class database_Util(object):
             # NOTE: committing all kills 9, try chunking
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
-                    cols = ('geom_id', 'geom_name', 'year', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
+                    cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
                     print('Added Data tables for features')
 
@@ -729,21 +717,8 @@ class query_Util(object):
             return False
 
 
-    def query_geom_by_name(self, geom_name):
-        geom_query = self.session.query(Geom).filter(
-            Geom.name == geom_name
-        )
-        json_data = []
-        for q in geom_query.all():
-            # convert postgis geometry to geojson object
-            q_dict = self.object_as_dict(q)
-            q_dict['coords'] = mapping(to_shape(q_dict['coords']))
-            json_data.append(q_dict)
-        json_data = json.dumps(json_data, ensure_ascii=False).encode('utf8')
-        return json_data
-
     def get_query_data(self):
-        feature_index_list = self.tv_vars['feature_index_list']
+        feature_index_list = [int(i) for i in self.tv_vars['feature_index_list']]
         rgn = self.tv_vars['region']
         # Set the dates list from temporal_resolution
         DU = date_Util()
@@ -801,11 +776,10 @@ class query_Util(object):
                 Geom.region_id == rgn_id
             )
         else:
-            geom_names = [rgn + '_' + str(f_idx) for f_idx in feature_index_list]
             geom_query = self.session.query(Geom).filter(
                 Geom.user_id == 0,
                 Geom.region_id == rgn_id,
-                Geom.name.in_(geom_names)
+                Geom.feature_index.in_(feature_index_list)
             )
         # get the relevant geom_ids
         geom_id_list = [q.id for q in geom_query.all()]
