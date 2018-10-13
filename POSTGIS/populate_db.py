@@ -32,7 +32,8 @@ if __name__ == '__main__':
     datasets = ['SSEBop']
     user_id = 0
     regions = ["US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
-    for rgn in regions[0:2]:
+    for rgn in regions[1:3]:
+        print(rgn)
         geom_change_by_year = False
         if rgn in config.statics['regions_changing_by_year']:
             geom_change_by_year = True

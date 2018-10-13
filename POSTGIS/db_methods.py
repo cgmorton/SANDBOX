@@ -315,8 +315,9 @@ class database_Util(object):
         if len(geom_query.all()) > 1:
             logging.error('Multiple geometries for ' + region + '/' + str(f_idx) + '/' + str(year))
             return -9999, None
-        geom_id = geom_query.first().id
-        geom_area = round(geom_query.first().area, 4)
+        geom = geom_query.first()
+        geom_id = geom.id
+        geom_area = geom.area
         return geom_id, geom_area
 
     def set_postgis_geometry(self, shapely_geom):
@@ -503,11 +504,13 @@ class database_Util(object):
             if idx_end > len(etdata['features']):
                 idx_end = len(etdata['features'])
             for f_idx in range(idx_start, idx_end):
+                feat_idx = f_idx +1
                 # Find the geometry name
                 geom_name = 'Not found'
                 for name_prop in config.statics['geom_name_keys']:
                     try:
                         geom_name = geojson_data['features'][f_idx]['properties'][name_prop]
+                        geom_name = geom_name.encode('utf-8').strip()
                     except:
                         continue
                 in_db = False
@@ -528,18 +531,18 @@ class database_Util(object):
                     year = self.year
                 else:
                     year = 9999
-                geom_id, geom_area = self.check_if_geom_in_db(self.region, f_idx, year)
+                geom_id, geom_area = self.check_if_geom_in_db(self.region, feat_idx, year)
                 if not geom_id:
                     # Convert the geojson geometry to postgis geometry using shapely
                     # Note: we convert polygons to multi polygon
                     # Convert to shapely shape
                     shapely_geom = asShape(g_data['geometry'])
-                    geom_area = shapely_geom.area
+                    geom_area = round(shapely_geom.area, 4)
                     postgis_geom = self.set_postgis_geometry(shapely_geom)
                     if postgis_geom is None:
                         raise Exception('Not a valid geometry, must be polygon or multi polygon!')
                     # Add the geometry table entry for this feature and obtain the geometry id
-                    geom_id = self.set_and_add_geom_entity(f_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
+                    geom_id = self.set_and_add_geom_entity(feat_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
 
                 logging.info('Added Geometry table')
                 print('Added Geometry row')
