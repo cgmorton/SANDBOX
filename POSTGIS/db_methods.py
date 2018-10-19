@@ -151,10 +151,10 @@ class database_Util(object):
         # Used to read geometry data from buckets
         if self.region in ['Mason', 'US_fields']:
             # Field boundaries depend on years
-            self.geoFName = region + '_' + year + '_GEOM.geojson'
+            self.geoFName = region + '_' + str(year) + '_GEOM.geojson'
         else:
             self.geoFName = region + '_GEOM.geojson'
-        self.dataFName = region + '_' + year + '_DATA'  '.json'
+        self.dataFName = region + '_' + str(year) + '_DATA'  '.json'
 
 
 
@@ -305,6 +305,7 @@ class database_Util(object):
         return in_db
 
     def check_if_geom_in_db(self, region, f_idx, year):
+        self.start_session()
         geom_query = self.session.query(Geom).filter(
             Geom.region_id == config.statics['db_id_region'][region],
             Geom.feature_index == int(f_idx),
@@ -318,6 +319,7 @@ class database_Util(object):
         geom = geom_query.first()
         geom_id = geom.id
         geom_area = geom.area
+        self.end_session()
         return geom_id, geom_area
 
     def set_postgis_geometry(self, shapely_geom):
@@ -344,6 +346,9 @@ class database_Util(object):
 
     def set_geom_metadata_entity(self, metadata_dict):
         return GeomMetadata(**metadata_dict)
+
+    def set_geom_data_entity(self, data_dict):
+        return Data(**data_dict)
 
     def set_and_add_geom_entity(self, feat_idx, geom_name, geom_type, postgis_geom, year, area):
         '''
@@ -495,10 +500,14 @@ class database_Util(object):
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
 
         while chunk <= num_chunks:
+            data_entities = []
+            meta_entities = []
+            '''
             csv_metadata = open('metadata.csv', 'wb+')
             csv_data = open('data.csv', 'wb+')
             csv_mwriter = csv.writer(csv_metadata, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             csv_dwriter = csv.writer(csv_data, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            '''
             idx_start = (chunk - 1) * chunk_size
             idx_end = chunk * chunk_size
             if idx_end > len(etdata['features']):
@@ -557,7 +566,10 @@ class database_Util(object):
                             value = 'Not Found'
                     # Remove commas, causes issues when copy_from
                     value = ' '.join(value.replace(', ', ',').split(','))
-                    csv_mwriter.writerow([geom_id, key, value])
+                    init_dict = {'geom_id': geom_id, 'key': key, 'value': value}
+                    meta_entities.append(self.set_geom_metadata_entity(init_dict))
+                    # csv_mwriter.writerow([geom_id, key, value])
+
 
                 dataset_id = config.statics['db_id_dataset'][self.dataset]
                 # Variable loop
@@ -575,26 +587,60 @@ class database_Util(object):
                                 data_value = float(f_data['properties'][var + '_' + data_var])
                             except:
                                 data_value = -9999
-                            row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
-                            csv_dwriter.writerow(row)
-            csv_metadata.close()
-            csv_data.close()
+
+
+                            init_dict = {
+                                'geom_id': geom_id,
+                                'geom_name': geom_name,
+                                'geom_area': geom_area,
+                                'year': self.year,
+                                'dataset_id': dataset_id,
+                                'variable_id': variable_id,
+                                'temporal_resolution': temporal_resolution,
+                                'data_date': data_date,
+                                'data_value': data_value
+                            }
+                            data_entities.append(self.set_data_entity(init_dict))
+                            # row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
+                            # csv_dwriter.writerow(row)
 
             # Commit the geom metadata and data for all features
+            '''            
+            csv_metadata.close()
+            csv_data.close()
+            
             # NOTE: committing all kills 9, try chunking
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
                     cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
-                    print('Added Data tables for features')
+                    print('Added Data tables rows for features')
 
             with open('metadata.csv', 'r') as f:
                 if os.stat("metadata.csv").st_size != 0:
                     cols = ('geom_id', 'name', 'properties')
                     cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
                     print('Added GeomMetadata table rows for features')
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
             os.remove('metadata.csv')
             os.remove('data.csv')
+            '''
+            self.session.add_all(data_entities)
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
+            self.session.add_all(meta_entities)
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
             chunk += 1
 
         # Commit all additions to database
@@ -699,6 +745,22 @@ class query_Util(object):
         return {c.key: getattr(obj, c.key)
                 for c in inspect(obj).mapper.column_attrs}
 
+    def query_all_data(self):
+        if self.session is None:
+            session =  self.start_session()
+        else:
+            session = self.session
+        data_query = session.query(Data)
+        self.end_session()
+        # Complile results as list of dicts
+        json_data = []
+        for q in data_query.all():
+            json_data.append(self.object_as_dict(q))
+            # Convert datetime time stamp to datestring
+            json_data[-1]['data_date'] = json_data[-1]['data_date'].strftime('%Y-%m-%d')
+        json_data = json.dumps(json_data, ensure_ascii=False).encode('utf8')
+        return json_data
+
     def check_if_data_in_db(self, geom_name):
         if self.session is None:
             session =  self.start_session()
@@ -711,8 +773,7 @@ class query_Util(object):
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
             Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']],
         )
-        if self.session is None:
-            self.end_session()
+        self.end_session()
 
         if len(data_query.all()) != 0:
             return True

@@ -32,7 +32,7 @@ if __name__ == '__main__':
     datasets = ['SSEBop']
     user_id = 0
     regions = ["US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
-    for rgn in regions[1:3]:
+    for rgn in regions[0:1]:
         print(rgn)
         geom_change_by_year = False
         if rgn in config.statics['regions_changing_by_year']:
@@ -41,7 +41,7 @@ if __name__ == '__main__':
             s_year = int(config.statics['all_year'][ds][0])
             e_year = int(config.statics['all_year'][ds][1])
             years = range(s_year, e_year)
-            for year_int in years:
+            for year_int in years[0:1]:
                 year = str(year_int)
                 DB_Util = db_methods.database_Util(rgn, ds, year, user_id, engine, geom_change_by_year)
                 DB_Util.add_data_to_db()
@@ -49,4 +49,5 @@ if __name__ == '__main__':
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
+
 
