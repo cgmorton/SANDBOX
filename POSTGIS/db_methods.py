@@ -10,8 +10,7 @@ import random
 
 import sqlalchemy as db
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import session as session_module
+# from sqlalchemy.orm import relationship
 from sqlalchemy import inspect
 from shapely.geometry import asShape
 from shapely.geometry import mapping
@@ -139,14 +138,14 @@ class database_Util(object):
         :year year of geojson dataset, might be ALL if not USFields
             USField geojsons change every year
     '''
-    def __init__(self, region, dataset, year, user_id, db_engine, region_changing_by_year):
+    def __init__(self, region, dataset, year, user_id, session, region_changing_by_year):
         self.region = region
         self.year = int(year)
         self.dataset = dataset
         self.user_id = user_id
         self.geo_bucket_url = config.GEO_BUCKET_URL
         self.data_bucket_url = config.DATA_BUCKET_URL
-        self.db_engine = db_engine
+        self.session = session
         self.region_changing_by_year = region_changing_by_year
         # Used to read geometry data from buckets
         if self.region in ['Mason', 'US_fields']:
@@ -155,17 +154,6 @@ class database_Util(object):
         else:
             self.geoFName = region + '_GEOM.geojson'
         self.dataFName = region + '_' + str(year) + '_DATA'  '.json'
-
-
-
-    def start_session(self):
-        # Set up the db session
-        Session = session_module.sessionmaker()
-        Session.configure(bind=self.db_engine)
-        self.session = Session()
-
-    def end_session(self):
-        self.session.close()
 
     def object_as_dict(self, obj):
         '''
@@ -284,28 +272,20 @@ class database_Util(object):
                 raise
             num_added = end
 
-    def check_if_data_in_db(self, f_idx):
+    def check_if_data_in_db(self, geom_id, geom_name):
         # Check if this entry is already in db
         in_db =  False
-        geom_name = self.region + '_' + str(f_idx)
         QU = query_Util({
             'region': self.region,
             'dataset': self.dataset,
             'year': self.year,
             'temporal_resolution': 'monthly',
-            'variable': 'et',
-            'feature_index_list': [f_idx]
-        }, self.db_engine, self.session)
-        '''
-        NOTE: if we don't json.loads here, 
-        len(json_data) is always > 0, hence in_db will always be true
-        '''
-        in_db = QU.check_if_data_in_db(geom_name)
-        QU.end_session()
+            'variable': 'et'
+        }, self.session)
+        in_db = QU.check_if_data_in_db(geom_id, geom_name)
         return in_db
 
     def check_if_geom_in_db(self, region, f_idx, year):
-        self.start_session()
         geom_query = self.session.query(Geom).filter(
             Geom.region_id == config.statics['db_id_region'][region],
             Geom.feature_index == int(f_idx),
@@ -319,7 +299,6 @@ class database_Util(object):
         geom = geom_query.first()
         geom_id = geom.id
         geom_area = geom.area
-        self.end_session()
         return geom_id, geom_area
 
     def set_postgis_geometry(self, shapely_geom):
@@ -346,9 +325,6 @@ class database_Util(object):
 
     def set_geom_metadata_entity(self, metadata_dict):
         return GeomMetadata(**metadata_dict)
-
-    def set_geom_data_entity(self, data_dict):
-        return Data(**data_dict)
 
     def set_and_add_geom_entity(self, feat_idx, geom_name, geom_type, postgis_geom, year, area):
         '''
@@ -398,12 +374,12 @@ class database_Util(object):
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
         db_empty = False
-        self.start_session()
 
         q = self.session.query(Data).first()
         if q is None:
             db_empty = True
 
+        print(db_empty)
         if db_empty:
             # Set up region, dataset, parameter and variable tables
             print('Database empty, setting up basic data tables')
@@ -481,6 +457,7 @@ class database_Util(object):
                 raise
             print('Added Variable rows')
 
+
         # Loop over features in bucket file, do in chunks
         # Oherwise we get a kill9 error
         chunk_size = config.statics['ingest_chunk_size']
@@ -522,15 +499,6 @@ class database_Util(object):
                         geom_name = geom_name.encode('utf-8').strip()
                     except:
                         continue
-                in_db = False
-                if not db_empty:
-                    in_db = self.check_if_data_in_db(f_idx)
-                if in_db:
-                    print(geom_name + '/' + str(self.year)  + ' data found in db. Skipping...')
-                    continue
-
-                f_data = etdata['features'][f_idx]
-                g_data = geojson_data['features'][f_idx]
 
                 print('Adding Feature '  + str(f_idx + 1))
 
@@ -540,6 +508,7 @@ class database_Util(object):
                     year = self.year
                 else:
                     year = 9999
+                g_data = geojson_data['features'][f_idx]
                 geom_id, geom_area = self.check_if_geom_in_db(self.region, feat_idx, year)
                 if not geom_id:
                     # Convert the geojson geometry to postgis geometry using shapely
@@ -552,9 +521,19 @@ class database_Util(object):
                         raise Exception('Not a valid geometry, must be polygon or multi polygon!')
                     # Add the geometry table entry for this feature and obtain the geometry id
                     geom_id = self.set_and_add_geom_entity(feat_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
+                    logging.info('Added Geometry row')
+                    print('Added Geometry row')
+                else:
+                    logging.info('Geometry found in db')
+                    print('Geometry found in db')
 
-                logging.info('Added Geometry table')
-                print('Added Geometry row')
+                # Check if the data is in db
+                in_db = self.check_if_data_in_db(geom_id, geom_name)
+                if in_db:
+                    print(geom_name + '/' + str(self.year) + ' data found in db. Skipping...')
+                    continue
+
+                f_data = etdata['features'][f_idx]
                 # Set the geometry metadata and data tables for bulk ingest
                 for key in config.statics['geom_meta_cols'][self.region]:
                     try:
@@ -588,7 +567,6 @@ class database_Util(object):
                             except:
                                 data_value = -9999
 
-
                             init_dict = {
                                 'geom_id': geom_id,
                                 'geom_name': geom_name,
@@ -603,18 +581,16 @@ class database_Util(object):
                             data_entities.append(self.set_data_entity(init_dict))
                             # row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
                             # csv_dwriter.writerow(row)
-
-            # Commit the geom metadata and data for all features
-            '''            
+            '''             
             csv_metadata.close()
             csv_data.close()
-            
-            # NOTE: committing all kills 9, try chunking
+
+            # Commit the geom metadata and data for all features
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
                     cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
-                    print('Added Data tables rows for features')
+                    print('Added Data tables for features')
 
             with open('metadata.csv', 'r') as f:
                 if os.stat("metadata.csv").st_size != 0:
@@ -626,6 +602,7 @@ class database_Util(object):
             except:
                 self.session.rollback()
                 raise
+
             os.remove('metadata.csv')
             os.remove('data.csv')
             '''
@@ -645,8 +622,7 @@ class database_Util(object):
 
         # Commit all additions to database
         self.session.commit()
-        # Close the connection and session
-        self.end_session()
+        # Close the connection
         conn.close()
 
 class date_Util(object):
@@ -709,25 +685,9 @@ class query_Util(object):
     '''
     Class to support API queries
     '''
-    def __init__(self, tv_vars, db_engine, session):
+    def __init__(self, tv_vars, session):
         self.tv_vars = tv_vars
-        self.db_engine = db_engine
         self.session = session
-
-        '''
-        # Set up the db session
-        Session = session_module.sessionmaker()
-        Session.configure(bind=db_engine)
-        self.session = Session()
-        '''
-    def start_session(self):
-        # Set up the db session
-        Session = session_module.sessionmaker()
-        Session.configure(bind=self.db_engine)
-        self.session = Session()
-
-    def end_session(self):
-        self.session.close()
 
     def check_query_params(self):
         '''
@@ -745,36 +705,15 @@ class query_Util(object):
         return {c.key: getattr(obj, c.key)
                 for c in inspect(obj).mapper.column_attrs}
 
-    def query_all_data(self):
-        if self.session is None:
-            session =  self.start_session()
-        else:
-            session = self.session
-        data_query = session.query(Data)
-        self.end_session()
-        # Complile results as list of dicts
-        json_data = []
-        for q in data_query.all():
-            json_data.append(self.object_as_dict(q))
-            # Convert datetime time stamp to datestring
-            json_data[-1]['data_date'] = json_data[-1]['data_date'].strftime('%Y-%m-%d')
-        json_data = json.dumps(json_data, ensure_ascii=False).encode('utf8')
-        return json_data
-
-    def check_if_data_in_db(self, geom_name):
-        if self.session is None:
-            session =  self.start_session()
-        else:
-            session = self.session
-        data_query = session.query(Data).filter(
+    def check_if_data_in_db(self, geom_id, geom_name):
+        data_query = self.session.query(Data).filter(
+            Data.geom_id == int(geom_id),
             Data.geom_name == geom_name,
             Data.year == int(self.tv_vars['year']),
             Data.dataset_id == config.statics['db_id_dataset'][self.tv_vars['dataset']],
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
-            Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']],
+            Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']]
         )
-        self.end_session()
-
         if len(data_query.all()) != 0:
             return True
         else:
@@ -782,7 +721,10 @@ class query_Util(object):
 
 
     def get_query_data(self):
-        feature_index_list = [int(i) for i in self.tv_vars['feature_index_list']]
+        if 'feature_index_list' in self.tv_vars.keys():
+            feature_index_list = [int(i) for i in self.tv_vars['feature_index_list']]
+        else:
+            feature_index_list = ['all']
         rgn = self.tv_vars['region']
         # Set the dates list from temporal_resolution
         DU = date_Util()
