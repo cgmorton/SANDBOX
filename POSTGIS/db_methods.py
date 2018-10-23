@@ -379,7 +379,6 @@ class database_Util(object):
         if q is None:
             db_empty = True
 
-        print(db_empty)
         if db_empty:
             # Set up region, dataset, parameter and variable tables
             print('Database empty, setting up basic data tables')
@@ -477,14 +476,16 @@ class database_Util(object):
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
 
         while chunk <= num_chunks:
+            '''
             data_entities = []
             meta_entities = []
             '''
+
             csv_metadata = open('metadata.csv', 'wb+')
             csv_data = open('data.csv', 'wb+')
             csv_mwriter = csv.writer(csv_metadata, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             csv_dwriter = csv.writer(csv_data, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            '''
+
             idx_start = (chunk - 1) * chunk_size
             idx_end = chunk * chunk_size
             if idx_end > len(etdata['features']):
@@ -545,9 +546,11 @@ class database_Util(object):
                             value = 'Not Found'
                     # Remove commas, causes issues when copy_from
                     value = ' '.join(value.replace(', ', ',').split(','))
+                    '''
                     init_dict = {'geom_id': geom_id, 'key': key, 'value': value}
                     meta_entities.append(self.set_geom_metadata_entity(init_dict))
-                    # csv_mwriter.writerow([geom_id, key, value])
+                    '''
+                    csv_mwriter.writerow([geom_id, key, value])
 
 
                 dataset_id = config.statics['db_id_dataset'][self.dataset]
@@ -566,7 +569,7 @@ class database_Util(object):
                                 data_value = float(f_data['properties'][var + '_' + data_var])
                             except:
                                 data_value = -9999
-
+                            '''
                             init_dict = {
                                 'geom_id': geom_id,
                                 'geom_name': geom_name,
@@ -579,9 +582,10 @@ class database_Util(object):
                                 'data_value': data_value
                             }
                             data_entities.append(self.set_data_entity(init_dict))
-                            # row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
-                            # csv_dwriter.writerow(row)
-            '''             
+                            '''
+                            row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
+                            csv_dwriter.writerow(row)
+
             csv_metadata.close()
             csv_data.close()
 
@@ -618,10 +622,9 @@ class database_Util(object):
             except:
                 self.session.rollback()
                 raise
+                
+            '''
             chunk += 1
-
-        # Commit all additions to database
-        self.session.commit()
         # Close the connection
         conn.close()
 

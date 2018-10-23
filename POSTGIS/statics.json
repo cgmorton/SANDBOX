@@ -1,5 +1,5 @@
 {
-  "ingest_chunk_size": 500,
+  "ingest_chunk_size": 100,
   "simple_form_options": [
     "dataset",
     "region",

@@ -21,9 +21,10 @@ if __name__ == '__main__':
     db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
 
-
+    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
+    '''
 
     start_time = time.time()
 
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     datasets = ['SSEBop']
     user_id = 0
     regions = ["US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
-    for rgn in regions[0:1]:
+    for rgn in regions[3:4]:
         print(rgn)
         geom_change_by_year = False
         if rgn in config.statics['regions_changing_by_year']:
@@ -45,7 +46,7 @@ if __name__ == '__main__':
             s_year = int(config.statics['all_year'][ds][0])
             e_year = int(config.statics['all_year'][ds][1])
             years = range(s_year, e_year)
-            for year_int in years[0:1]:
+            for year_int in years:
                 year = str(year_int)
                 DB_Util = db_methods.database_Util(rgn, ds, year, user_id, session, geom_change_by_year)
                 DB_Util.add_data_to_db()
