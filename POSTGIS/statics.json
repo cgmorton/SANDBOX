@@ -81,6 +81,9 @@
     "pr": "mm"
   },
   "regions_changing_by_year": [],
+  "db_id_user": {
+    "Public": 0
+  },
   "db_id_region": {
     "Custom": 0,
     "US_states_west_500k": 1,

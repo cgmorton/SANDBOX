@@ -10,10 +10,12 @@ import random
 
 import sqlalchemy as db
 from sqlalchemy.ext.declarative import declarative_base
-# from sqlalchemy.orm import relationship
+# from sqlalchemy.orm import relationship, backref
 from sqlalchemy import inspect
 from shapely.geometry import asShape
-from shapely.geometry import mapping
+from sqlalchemy import DDL
+from sqlalchemy import event
+# from shapely.geometry import mapping
 from shapely.geometry.multipolygon import MultiPolygon
 from geoalchemy2.shape import from_shape, to_shape
 from geoalchemy2.types import Geometry
@@ -21,12 +23,58 @@ import geojson
 
 import config
 
-Base = declarative_base()
+
 #######################################
 # OpenET database tables
 #######################################
+Base = declarative_base()
+# meta = db.MetaData(schema="openet geodatabase")
+# meta = db.MetaData(schema="test")
+schema = 'test'
+event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
+
+class Region(Base):
+    # States, Counties, HUCs or fields or custom
+    __tablename__ = 'region'
+    __table_args__ = {'schema': schema}
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String())
+
+    # geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+class Dataset(Base):
+    __tablename__ = 'dataset'
+    __table_args__ = {'schema': schema}
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String())
+    ee_collection = db.Column(db.String())
+
+
+    # parameters = relationship('Parameter', back_populates='dataset', cascade='save-update, merge, delete')
+    # data = relationship('Data', back_populates='dataset', cascade='save-update, merge, delete')
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+class Variable(Base):
+    __tablename__ = 'variable'
+    __table_args__ = {'schema': schema}
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String())
+    units = db.Column(db.String())
+    # data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
 class User(Base):
     __tablename__ = 'user'
+    __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     email = db.Column(db.String())
@@ -38,72 +86,74 @@ class User(Base):
     active = db.Column(db.String())
     role = db.Column(db.String())
 
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+    # geometries = relationship('Geom', secondary='geom_user_link', back_populates='users', cascade='save-update, merge, delete')
+    # geometries = relationship('Geom', secondary='geom_user_link', cascade='save-update, merge, delete')
 
-class Region(Base):
-    # States, Counties, HUCs or fields or custom
-    __tablename__ = 'region'
-    id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.String())
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-
-class Dataset(Base):
-    __tablename__ = 'dataset'
-    id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.String())
-    ee_collection = db.Column(db.String())
-
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-class Variable(Base):
-    __tablename__ = 'variable'
-    id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.String())
-    units = db.Column(db.String())
-
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
 
 class Geom(Base):
     __tablename__ = 'geom'
+    __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
-    user_id = db.Column(db.Integer())
+    user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), nullable=False)
     year = db.Column(db.Integer())
-    region_id = db.Column(db.Integer())
-    feature_index =  db.Column(db.Integer())
+    region_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'region.id'), nullable=False)
+    feature_index = db.Column(db.Integer())
     name = db.Column(db.String())
     type = db.Column(db.String())
     area = db.Column(db.Float(precision=4))
     coords = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
+
+
+    # region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
+    # meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
+    # data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
+
+
     '''
-    FIX ME: I don't know how to implement that in dbSCHEMA or pgADMIN
-    meta = relationship('GeomMetadata', backref='geom', lazy=True)
-    data = relationship('Data', backref='data', lazy=True)
+    users = relationship('User', secondary='geom_user_link', back_populates='geometries', cascade='save-update, merge, delete')
+    # users = relationship('User', secondary='geom_user_link', cascade='save-update, merge, delete')
     '''
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+# For many-to-many relationships (user-- geom)
+class GeomUserLink(Base):
+    '''
+    Geom User association table: many-to-many
+    '''
+    # metadata = meta
+    __tablename__ = 'geom_user_link'
+    __table_args__ = {'schema': schema}
+    user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), primary_key=True)
+    geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), primary_key=True)
+
+
 class GeomMetadata(Base):
     __tablename__ = 'geom_metadata'
+    __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
-    geom_id = db.Column(db.Integer(), db.ForeignKey('geom.id'), nullable=False)
+    geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), nullable=False)
     name = db.Column(db.String())
     properties = db.Column(db.String())
+
+    # geom = relationship('Geom', back_populates='meta_data', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
 class Parameter(Base):
     __tablename__ = 'parameter'
+    __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
-    dataset_id = db.Column(db.Integer(), db.ForeignKey('dataset.id'), nullable=False)
+    dataset_id = db.Column(db.Integer(), db.ForeignKey(schema + '.'  + 'dataset.id'), nullable=False)
     name = db.Column(db.String())
     properties =  db.Column(db.String())
+
+    # dataset = relationship('Dataset', back_populates='parameters', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -111,22 +161,29 @@ class Parameter(Base):
 
 class Data(Base):
     __tablename__ = 'data'
+    __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
-    geom_id = db.Column(db.Integer(), db.ForeignKey('geom.id'), nullable=False)
-    geom_name = db.Column(db.String()) #should be foreign key tp geom.name but gives error when creating
+    geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), nullable=False)
+    geom_name = db.Column(db.String())
     geom_area = db.Column(db.Float(precision=4))
     year = db.Column(db.Integer())
-    dataset_id =  db.Column(db.Integer(), db.ForeignKey('dataset.id'), nullable=False)
-    variable_id =  db.Column(db.Integer(), db.ForeignKey('variable.id'), nullable=False)
+    dataset_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'dataset.id'), nullable=False)
+    variable_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'variable.id'), nullable=False)
     temporal_resolution = db.Column(db.String())
     data_date = db.Column(db.DateTime())
     data_value = db.Column(db.Float(precision=4))
 
+    # geom = relationship('Geom', back_populates='data', cascade='save-update, merge, delete')
+    # dataset = relationship('Dataset', back_populates='data', cascade='save-update, merge, delete')
+    # variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
+
 #######################################
 # END OpenET database tables
 #######################################
+
 class database_Util(object):
     '''
     Class to support database (cloudSQL) population
@@ -147,6 +204,7 @@ class database_Util(object):
         self.data_bucket_url = config.DATA_BUCKET_URL
         self.session = session
         self.region_changing_by_year = region_changing_by_year
+
         # Used to read geometry data from buckets
         if self.region in ['Mason', 'US_fields']:
             # Field boundaries depend on years
@@ -383,12 +441,37 @@ class database_Util(object):
             # Set up region, dataset, parameter and variable tables
             print('Database empty, setting up basic data tables')
 
+            # Users
+            entities = []
+            for key in config.statics['db_id_user'].keys():
+                init_dict = {
+                    'id': config.statics['db_id_user'][key],
+                    'name': key
+                }
+                entities.append(self.set_user_entity(init_dict))
+
+            self.session.add_all(entities)
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
+            print('Added Region rows')
+
             # Regions
             entities = []
             for key in config.statics['db_id_region'].keys():
                 init_dict = {
                     'id': config.statics['db_id_region'][key],
-                    'name': key
+                    'name': key,
+                    'email': 'None',
+                    'last_login': dt.datetime.today(),
+                    'joined': dt.datetime.today(),
+                    'ip': '',
+                    'password': 'None',
+                    'notes': 'Public user has access to all public geometries',
+                    'active': 'active',
+                    'role': 'guest'
                 }
                 entities.append(self.set_region_entity(init_dict))
 
@@ -474,6 +557,7 @@ class database_Util(object):
         conn = self.session.connection()  # SQLAlchemy Connection
         dbapi_conn = conn.connection  # DBAPI connection (technically a connection pool wrapper called ConnectionFairy, but everything is there)
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
+        cursor.execute("SET search_path TO myschema," + schema + ', public')
 
         while chunk <= num_chunks:
             '''
@@ -590,12 +674,6 @@ class database_Util(object):
             csv_data.close()
 
             # Commit the geom metadata and data for all features
-            with open('data.csv', 'r') as f:
-                if os.stat("data.csv").st_size != 0:
-                    cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id', 'temporal_resolution', 'data_date', 'data_value')
-                    cursor.copy_from(f, 'data', sep=',', columns=cols)
-                    print('Added Data tables for features')
-
             with open('metadata.csv', 'r') as f:
                 if os.stat("metadata.csv").st_size != 0:
                     cols = ('geom_id', 'name', 'properties')
@@ -607,8 +685,24 @@ class database_Util(object):
                 self.session.rollback()
                 raise
 
+
+            with open('data.csv', 'r') as f:
+                if os.stat("data.csv").st_size != 0:
+                    cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id',
+                            'temporal_resolution', 'data_date', 'data_value')
+                    cursor.copy_from(f, 'data', sep=',', columns=cols)
+                    print('Added Data tables for features')
+            
+
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
+
             os.remove('metadata.csv')
             os.remove('data.csv')
+
             '''
             self.session.add_all(data_entities)
             try:
@@ -626,7 +720,8 @@ class database_Util(object):
             '''
             chunk += 1
         # Close the connection
-        conn.close()
+        # conn.close()
+
 
 class date_Util(object):
 
@@ -683,6 +778,8 @@ class date_Util(object):
         m = self.get_month(t_res, data_var)
         d = int(config.statics['mon_len'][m - 1])
         return dt.datetime(yr, m, d)
+
+
 
 class query_Util(object):
     '''
