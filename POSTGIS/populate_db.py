@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 import db_methods
 import config
 from sqlalchemy.orm import session as session_module
+# from sqlalchemy.orm import scoped_session, sessionmaker
 
 
 #######################################
@@ -24,6 +25,7 @@ if __name__ == '__main__':
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
     db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
+    # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
     db_methods.Base.metadata.drop_all(engine)
@@ -35,6 +37,7 @@ if __name__ == '__main__':
     # Set up the db session
     schema = db_methods.schema
     Session = session_module.sessionmaker()
+    # Session = scoped_session(sessionmaker())
     Session.configure(bind=engine)
     session = Session()
     session.execute("SET search_path TO " + schema + ', public')

@@ -29,7 +29,7 @@ import config
 #######################################
 Base = declarative_base()
 # meta = db.MetaData(schema="openet geodatabase")
-# meta = db.MetaData(schema="test")
+Base.metadata = db.MetaData(schema="test")
 schema = 'test'
 event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
 
@@ -69,6 +69,11 @@ class Variable(Base):
         self.__dict__.update(kwargs)
 
 
+GeomUserLink = db.Table('geom_user_link', Base.metadata,
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id', ondelete='cascade', onupdate='cascade')),
+    db.Column('geom_id', db.Integer, db.ForeignKey('geom.id', ondelete='cascade', onupdate='cascade'))
+)
+
 class User(Base):
     __tablename__ = 'user'
     __table_args__ = {'schema': schema}
@@ -82,9 +87,7 @@ class User(Base):
     notes = db.Column(db.String())
     active = db.Column(db.String())
     role = db.Column(db.String())
-    # geometries = relationship('Geom', secondary='geom_user_link', back_populates='users', cascade='save-update, merge, delete')
-    # geometries = relationship('Geom', secondary='geom_user_link', cascade='save-update, merge, delete')
-
+    geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -105,26 +108,22 @@ class Geom(Base):
     region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
     meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
     data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
+    users = relationship('User', secondary=GeomUserLink, back_populates='geometries', cascade='save-update, merge, delete')
 
-
-    '''
-    users = relationship('User', secondary='geom_user_link', back_populates='geometries', cascade='save-update, merge, delete')
-    # users = relationship('User', secondary='geom_user_link', cascade='save-update, merge, delete')
-    '''
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+'''
 # For many-to-many relationships (user-- geom)
 class GeomUserLink(Base):
-    '''
-    Geom User association table: many-to-many
-    '''
+    # Geom User association table: many-to-many
+    
     # metadata = meta
     __tablename__ = 'geom_user_link'
     __table_args__ = {'schema': schema}
     user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), primary_key=True)
     geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), primary_key=True)
-
+'''
 
 class GeomMetadata(Base):
     __tablename__ = 'geom_metadata'
