@@ -99,7 +99,7 @@ class Geom(Base):
     __tablename__ = 'geom'
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
-    user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), nullable=False)
+    # user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), nullable=False)
     year = db.Column(db.Integer())
     region_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'region.id'), nullable=False)
     feature_index = db.Column(db.Integer())
@@ -365,14 +365,14 @@ class database_Util(object):
     def set_geom_metadata_entity(self, metadata_dict):
         return GeomMetadata(**metadata_dict)
 
-    def set_and_add_geom_entity(self, feat_idx, geom_name, geom_type, postgis_geom, year, area):
+    def set_geom_entity(self, feat_idx, geom_name, geom_type, postgis_geom, year, area):
         '''
         Adds the geometry row to database and retrieves the automatically
         assigned primary key geom_id
         # Note: primary key is AUTOSET in db
         '''
         geometry = Geom(
-            user_id=self.user_id,
+            # user_id=self.user_id,
             year=int(year),
             region_id=config.statics['db_id_region'][self.region],
             feature_index=feat_idx,
@@ -381,17 +381,7 @@ class database_Util(object):
             area=area,
             coords=postgis_geom
         )
-        # Submit the geom table to obtain the primary key geom_id
-        # geometry = Geom(**geom_init)
-        self.session.add(geometry)
-        try:
-            self.session.commit()
-        except:
-            self.session.rollback()
-            raise
-        geom_id = geometry.id
-        return geom_id
-
+        return geometry
 
     def set_parameter_entity(self, parameter_dict):
         return Parameter(**parameter_dict)
@@ -424,13 +414,25 @@ class database_Util(object):
 
             # Users
             entities = []
+            user_ids_for_geom = []
             for key in config.statics['db_id_user'].keys():
+                user_id = config.statics['db_id_user'][key]
                 init_dict = {
-                    'id': config.statics['db_id_user'][key],
-                    'name': key
+                    'id': user_id,
+                    'name': key,
+                    'email': 'None',
+                    'last_login': dt.datetime.today(),
+                    'joined': dt.datetime.today(),
+                    'ip': '',
+                    'password': 'None',
+                    'notes': 'Public user has access to all public geometries',
+                    'active': 'active',
+                    'role': 'guest'
                 }
-                entities.append(self.set_user_entity(init_dict))
-
+                entity = self.set_user_entity(init_dict)
+                entities.append(entity)
+                if user_id in config.statics['db_region_users'][self.region]:
+                    user_ids_for_geom.append(user_id)
             self.session.add_all(entities)
             try:
                 self.session.commit()
@@ -444,15 +446,7 @@ class database_Util(object):
             for key in config.statics['db_id_region'].keys():
                 init_dict = {
                     'id': config.statics['db_id_region'][key],
-                    'name': key,
-                    'email': 'None',
-                    'last_login': dt.datetime.today(),
-                    'joined': dt.datetime.today(),
-                    'ip': '',
-                    'password': 'None',
-                    'notes': 'Public user has access to all public geometries',
-                    'active': 'active',
-                    'role': 'guest'
+                    'name': key
                 }
                 entities.append(self.set_region_entity(init_dict))
 
@@ -587,8 +581,23 @@ class database_Util(object):
                     if postgis_geom is None:
                         raise Exception('Not a valid geometry, must be polygon or multi polygon!')
                     # Add the geometry table entry for this feature and obtain the geometry id
-                    geom_id = self.set_and_add_geom_entity(feat_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
+                    geometry = self.set_geom_entity(feat_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
+                    # Submit the geom table to obtain the primary key geom_id
+                    # geometry = Geom(**geom_init)
+                    self.session.add(geometry)
+                    try:
+                        self.session.commit()
+                    except:
+                        self.session.rollback()
+                        raise
+                    geom_id = geometry.id
                     logging.info('Added Geometry row')
+                    # Add the many-to-many relationship between user and geom
+                    # (user_id, geom_id pairs)
+                    uid_geomid_pairs = []
+                    for user_id in user_ids_for_geom:
+                        uid_geomid_pairs.append((user_id, geom_id))
+                    self.session.execute(GeomUserLink.insert().values(uid_geomid_pairs))
                     print('Added Geometry row')
                 else:
                     logging.info('Geometry found in db')
@@ -814,7 +823,6 @@ class query_Util(object):
         # Not Working
         data_query = self.session.query(Geom, Data). \
             filter(
-            Geom.user_id == 0,
             Geom.region_id == rgn_id,
             Geom.name.in_(geom_names)
         ). \
@@ -840,11 +848,18 @@ class query_Util(object):
                 Geom.region_id == rgn_id
             )
         else:
+            '''
             geom_query = self.session.query(Geom).filter(
                 Geom.user_id == 0,
                 Geom.region_id == rgn_id,
                 Geom.feature_index.in_(feature_index_list)
             )
+            '''
+            geom_query = self.session.query(Geom).filter(Geom.users.any(id=0))
+            # geom_query = self.session.query(Geom).join(Geom.users).filter_by(id=0)
+
+
+
         # get the relevant geom_ids
         geom_id_list = [q.id for q in geom_query.all()]
 

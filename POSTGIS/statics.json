@@ -119,6 +119,12 @@
     "variable",
     "feature_index"
   ],
+  "db_region_users": {
+    "US_states_west_500k": [0],
+    "US_counties_west_500k": [0],
+    "Mason": [0],
+    "CentralValley_15": [0]
+  },
   "var_data_by_tres":{
     "annual": ["annual"],
     "seasonal": ["seasonal"],
