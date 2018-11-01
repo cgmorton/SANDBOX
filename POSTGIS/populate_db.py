@@ -28,9 +28,10 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
+    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-
+    '''
 
     start_time = time.time()
 
@@ -55,7 +56,7 @@ if __name__ == '__main__':
             s_year = int(config.statics['all_year'][ds][0])
             e_year = int(config.statics['all_year'][ds][1])
             years = range(s_year, e_year)
-            for year_int in years[0:1]:
+            for year_int in years:
                 year = str(year_int)
                 DB_Util = db_methods.database_Util(rgn, ds, year, user_id, session, geom_change_by_year)
                 DB_Util.add_data_to_db()

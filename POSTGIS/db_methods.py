@@ -668,27 +668,11 @@ class database_Util(object):
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
                     print('Added Data tables for features')
 
-                    '''
-                    try:
-                        self.session.commit()
-                    except:
-                        self.session.rollback()
-                        raise
-                    '''
-
             with open('metadata.csv', 'r') as f:
                 if os.stat("metadata.csv").st_size != 0:
                     cols = ('geom_id', 'name', 'properties')
                     cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
                     print('Added GeomMetadata table rows for features')
-
-                    '''
-                    try:
-                        self.session.commit()
-                    except:
-                        self.session.rollback()
-                        raise
-                    '''
             try:
                 self.session.commit()
             except:
