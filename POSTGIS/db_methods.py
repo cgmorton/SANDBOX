@@ -6,7 +6,7 @@ import urllib2
 import copy
 import subprocess
 import csv
-import random
+
 
 import sqlalchemy as db
 from sqlalchemy.ext.declarative import declarative_base
@@ -15,7 +15,6 @@ from sqlalchemy import inspect
 from shapely.geometry import asShape
 from sqlalchemy import DDL
 from sqlalchemy import event
-# from shapely.geometry import mapping
 from shapely.geometry.multipolygon import MultiPolygon
 from geoalchemy2.shape import from_shape, to_shape
 from geoalchemy2.types import Geometry
@@ -29,8 +28,8 @@ import config
 #######################################
 Base = declarative_base()
 # schema='openet geodatabase'
-# schema = 'test'
-schema = 'public'
+schema = 'test'
+# schema = 'public'
 Base.metadata = db.MetaData(schema=schema)
 
 event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
@@ -41,7 +40,7 @@ class Region(Base):
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
-    # geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
+    geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -53,9 +52,8 @@ class Dataset(Base):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     ee_collection = db.Column(db.String())
-
-    # parameters = relationship('Parameter', back_populates='dataset', cascade='save-update, merge, delete')
-    # data = relationship('Data', back_populates='dataset', cascade='save-update, merge, delete')
+    parameters = relationship('Parameter', back_populates='dataset', cascade='save-update, merge, delete')
+    data = relationship('Data', back_populates='dataset', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -66,18 +64,17 @@ class Variable(Base):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     units = db.Column(db.String())
-
-    # data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
+    data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-'''
+
 GeomUserLink = db.Table('geom_user_link', Base.metadata,
     db.Column('user_id', db.Integer, db.ForeignKey('user.id', ondelete='cascade', onupdate='cascade')),
     db.Column('geom_id', db.Integer, db.ForeignKey('geom.id', ondelete='cascade', onupdate='cascade'))
 )
-'''
+
 
 class User(Base):
     __tablename__ = 'user'
@@ -92,7 +89,7 @@ class User(Base):
     notes = db.Column(db.String())
     active = db.Column(db.String())
     role = db.Column(db.String())
-    # geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
+    geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -110,11 +107,10 @@ class Geom(Base):
     type = db.Column(db.String())
     area = db.Column(db.Float(precision=4))
     coords = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
-
-    # region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
-    # meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
-    # data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
-    # users = relationship('User', secondary=GeomUserLink, back_populates='geometries', cascade='save-update, merge, delete')
+    region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
+    meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
+    data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
+    users = relationship('User', secondary=GeomUserLink, back_populates='geometries', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -127,7 +123,7 @@ class GeomMetadata(Base):
     geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), nullable=False)
     name = db.Column(db.String())
     properties = db.Column(db.String())
-    # geom = relationship('Geom', back_populates='meta_data', cascade='save-update, merge, delete')
+    geom = relationship('Geom', back_populates='meta_data', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -139,7 +135,7 @@ class Parameter(Base):
     dataset_id = db.Column(db.Integer(), db.ForeignKey(schema + '.'  + 'dataset.id'), nullable=False)
     name = db.Column(db.String())
     properties =  db.Column(db.String())
-    # dataset = relationship('Dataset', back_populates='parameters', cascade='save-update, merge, delete')
+    dataset = relationship('Dataset', back_populates='parameters', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -158,10 +154,9 @@ class Data(Base):
     temporal_resolution = db.Column(db.String())
     data_date = db.Column(db.DateTime())
     data_value = db.Column(db.Float(precision=4))
-
-    # geom = relationship('Geom', back_populates='data', cascade='save-update, merge, delete')
-    # dataset = relationship('Dataset', back_populates='data', cascade='save-update, merge, delete')
-    # variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
+    geom = relationship('Geom', back_populates='data', cascade='save-update, merge, delete')
+    dataset = relationship('Dataset', back_populates='data', cascade='save-update, merge, delete')
+    variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -679,29 +674,12 @@ class database_Util(object):
                 self.session.rollback()
                 raise
 
-            '''
+
             os.remove('metadata.csv')
             os.remove('data.csv')
-            '''
-
-            '''
-            self.session.add_all(data_entities)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-            self.session.add_all(meta_entities)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-                
-            '''
             chunk += 1
         # Close the connection
-        # conn.close()
+        conn.close()
 
 
 class date_Util(object):
@@ -846,7 +824,6 @@ class query_Util(object):
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
             Data.data_date.in_(dates_list)
         )
-
         json_data = []
         for g, d in data_query.all():
             json_data.append(self.object_as_dict(d))

@@ -28,10 +28,10 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
-    '''
+
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-    '''
+
 
     start_time = time.time()
 
