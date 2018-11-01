@@ -28,9 +28,11 @@ import config
 # OpenET database tables
 #######################################
 Base = declarative_base()
-# meta = db.MetaData(schema="openet geodatabase")
-Base.metadata = db.MetaData(schema="test")
-schema = 'test'
+# schema='openet geodatabase'
+# schema = 'test'
+schema = 'public'
+Base.metadata = db.MetaData(schema=schema)
+
 event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
 
 class Region(Base):
@@ -39,7 +41,7 @@ class Region(Base):
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
-    geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
+    # geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -51,8 +53,9 @@ class Dataset(Base):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     ee_collection = db.Column(db.String())
-    parameters = relationship('Parameter', back_populates='dataset', cascade='save-update, merge, delete')
-    data = relationship('Data', back_populates='dataset', cascade='save-update, merge, delete')
+
+    # parameters = relationship('Parameter', back_populates='dataset', cascade='save-update, merge, delete')
+    # data = relationship('Data', back_populates='dataset', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -63,16 +66,18 @@ class Variable(Base):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     units = db.Column(db.String())
-    data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
+
+    # data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-
+'''
 GeomUserLink = db.Table('geom_user_link', Base.metadata,
     db.Column('user_id', db.Integer, db.ForeignKey('user.id', ondelete='cascade', onupdate='cascade')),
     db.Column('geom_id', db.Integer, db.ForeignKey('geom.id', ondelete='cascade', onupdate='cascade'))
 )
+'''
 
 class User(Base):
     __tablename__ = 'user'
@@ -87,7 +92,7 @@ class User(Base):
     notes = db.Column(db.String())
     active = db.Column(db.String())
     role = db.Column(db.String())
-    geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
+    # geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -105,25 +110,15 @@ class Geom(Base):
     type = db.Column(db.String())
     area = db.Column(db.Float(precision=4))
     coords = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
-    region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
-    meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
-    data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
-    users = relationship('User', secondary=GeomUserLink, back_populates='geometries', cascade='save-update, merge, delete')
+
+    # region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
+    # meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
+    # data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
+    # users = relationship('User', secondary=GeomUserLink, back_populates='geometries', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-'''
-# For many-to-many relationships (user-- geom)
-class GeomUserLink(Base):
-    # Geom User association table: many-to-many
-    
-    # metadata = meta
-    __tablename__ = 'geom_user_link'
-    __table_args__ = {'schema': schema}
-    user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), primary_key=True)
-    geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), primary_key=True)
-'''
 
 class GeomMetadata(Base):
     __tablename__ = 'geom_metadata'
@@ -132,7 +127,7 @@ class GeomMetadata(Base):
     geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), nullable=False)
     name = db.Column(db.String())
     properties = db.Column(db.String())
-    geom = relationship('Geom', back_populates='meta_data', cascade='save-update, merge, delete')
+    # geom = relationship('Geom', back_populates='meta_data', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -144,7 +139,7 @@ class Parameter(Base):
     dataset_id = db.Column(db.Integer(), db.ForeignKey(schema + '.'  + 'dataset.id'), nullable=False)
     name = db.Column(db.String())
     properties =  db.Column(db.String())
-    dataset = relationship('Dataset', back_populates='parameters', cascade='save-update, merge, delete')
+    # dataset = relationship('Dataset', back_populates='parameters', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -163,9 +158,10 @@ class Data(Base):
     temporal_resolution = db.Column(db.String())
     data_date = db.Column(db.DateTime())
     data_value = db.Column(db.Float(precision=4))
-    geom = relationship('Geom', back_populates='data', cascade='save-update, merge, delete')
-    dataset = relationship('Dataset', back_populates='data', cascade='save-update, merge, delete')
-    variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
+
+    # geom = relationship('Geom', back_populates='data', cascade='save-update, merge, delete')
+    # dataset = relationship('Dataset', back_populates='data', cascade='save-update, merge, delete')
+    # variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -572,6 +568,7 @@ class database_Util(object):
                     try:
                         geom_name = geojson_data['features'][f_idx]['properties'][name_prop]
                         geom_name = geom_name.encode('utf-8').strip()
+                        break
                     except:
                         continue
 
@@ -664,34 +661,44 @@ class database_Util(object):
             csv_data.close()
 
             # Commit the geom metadata and data for all features
-            with open('metadata.csv', 'r') as f:
-                if os.stat("metadata.csv").st_size != 0:
-                    cols = ('geom_id', 'name', 'properties')
-                    cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
-                    print('Added GeomMetadata table rows for features')
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-
-
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
                     cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id',
                             'temporal_resolution', 'data_date', 'data_value')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
                     print('Added Data tables for features')
-            
 
+                    '''
+                    try:
+                        self.session.commit()
+                    except:
+                        self.session.rollback()
+                        raise
+                    '''
+
+            with open('metadata.csv', 'r') as f:
+                if os.stat("metadata.csv").st_size != 0:
+                    cols = ('geom_id', 'name', 'properties')
+                    cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
+                    print('Added GeomMetadata table rows for features')
+
+                    '''
+                    try:
+                        self.session.commit()
+                    except:
+                        self.session.rollback()
+                        raise
+                    '''
             try:
                 self.session.commit()
             except:
                 self.session.rollback()
                 raise
 
+            '''
             os.remove('metadata.csv')
             os.remove('data.csv')
+            '''
 
             '''
             self.session.add_all(data_entities)
