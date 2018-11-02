@@ -400,6 +400,10 @@ class database_Util(object):
         etdata = self.read_etdata_from_bucket()
         geojson_data = self.read_geodata_from_bucket()
 
+
+        # Set the user ids associated with this region
+        user_ids_for_geom = config.statics['db_region_users'][self.region]
+
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
         db_empty = False
@@ -414,7 +418,6 @@ class database_Util(object):
 
             # Users
             entities = []
-            user_ids_for_geom = []
             for key in config.statics['db_id_user'].keys():
                 user_id = config.statics['db_id_user'][key]
                 init_dict = {
@@ -431,8 +434,7 @@ class database_Util(object):
                 }
                 entity = self.set_user_entity(init_dict)
                 entities.append(entity)
-                if user_id in config.statics['db_region_users'][self.region]:
-                    user_ids_for_geom.append(user_id)
+
             self.session.add_all(entities)
             try:
                 self.session.commit()
