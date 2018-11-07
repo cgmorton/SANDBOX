@@ -41,14 +41,16 @@ if __name__ == '__main__':
     Session = session_module.sessionmaker()
     # Session = scoped_session(sessionmaker())
     Session.configure(bind=engine)
+    '''
     session = Session()
     session.execute("SET search_path TO " + schema + ', public')
+    '''
 
     # print(Base.metadata.sorted_tables)
     datasets = ['SSEBop']
     user_id = 0
     regions = ["US_states_west_500k", "US_counties_west_500k", "Mason", "CentralValley_15"]
-    for rgn in regions[0:3]:
+    for rgn in regions[3:4]:
         print(rgn)
         geom_change_by_year = False
         if rgn in config.statics['regions_changing_by_year']:
@@ -57,11 +59,15 @@ if __name__ == '__main__':
             s_year = int(config.statics['all_year'][ds][0])
             e_year = int(config.statics['all_year'][ds][1])
             years = range(s_year, e_year)
-            for year_int in years:
+            for year_int in years[0:1]:
                 year = str(year_int)
-                DB_Util = db_methods.database_Util(rgn, ds, year, user_id, session, geom_change_by_year)
-                DB_Util.add_data_to_db()
-    session.close()
+                DB_Util = db_methods.database_Util(rgn, ds, year, user_id, geom_change_by_year)
+                etdata = DB_Util.read_etdata_from_bucket()
+                geojson_data = DB_Util.read_geodata_from_bucket()
+                session = Session()
+                session.execute("SET search_path TO " + schema + ', public')
+                DB_Util.add_data_to_db(etdata, geojson_data, session)
+                session.close()
     
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))

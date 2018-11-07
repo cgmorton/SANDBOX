@@ -176,14 +176,13 @@ class database_Util(object):
         :year year of geojson dataset, might be ALL if not USFields
             USField geojsons change every year
     '''
-    def __init__(self, region, dataset, year, user_id, session, region_changing_by_year):
+    def __init__(self, region, dataset, year, user_id, region_changing_by_year):
         self.region = region
         self.year = int(year)
         self.dataset = dataset
         self.user_id = user_id
         self.geo_bucket_url = config.GEO_BUCKET_URL
         self.data_bucket_url = config.DATA_BUCKET_URL
-        self.session = session
         self.region_changing_by_year = region_changing_by_year
 
         # Used to read geometry data from buckets
@@ -286,7 +285,7 @@ class database_Util(object):
         '''
         return d
 
-    def add_in_chunks(self, entity_list):
+    def add_in_chunks(self, entity_list, session):
         ent_len = len(entity_list)
         num_chunks = ent_len / 500
         if ent_len % 500 != 0:
@@ -303,15 +302,15 @@ class database_Util(object):
                 end = start + end_chunk_len
             entities = entity_list[start:end]
 
-            db.session.add_all(entities)
+            session.add_all(entities)
             try:
-                db.session.commit()
+                session.commit()
             except:
-                db.session.rollback()
+                session.rollback()
                 raise
             num_added = end
 
-    def check_if_data_in_db(self, geom_id, geom_name):
+    def check_if_data_in_db(self, geom_id, geom_name, session):
         # Check if this entry is already in db
         in_db =  False
         QU = query_Util({
@@ -320,12 +319,12 @@ class database_Util(object):
             'year': self.year,
             'temporal_resolution': 'monthly',
             'variable': 'et'
-        }, self.session)
+        }, session)
         in_db = QU.check_if_data_in_db(geom_id, geom_name)
         return in_db
 
-    def check_if_geom_in_db(self, region, f_idx, year):
-        geom_query = self.session.query(Geom).filter(
+    def check_if_geom_in_db(self, region, f_idx, year, session):
+        geom_query = session.query(Geom).filter(
             Geom.region_id == config.statics['db_id_region'][region],
             Geom.feature_index == int(f_idx),
             Geom.year == year
@@ -391,15 +390,16 @@ class database_Util(object):
 
 
 
-    def add_data_to_db(self):
+    def add_data_to_db(self, etdata, geojson_data, session):
         '''
         Add data to database
         :return:
         '''
         # Read etdata from bucket
+        '''
         etdata = self.read_etdata_from_bucket()
         geojson_data = self.read_geodata_from_bucket()
-
+        '''
 
         # Set the user ids associated with this region
         user_ids_for_geom = config.statics['db_region_users'][self.region]
@@ -408,7 +408,7 @@ class database_Util(object):
         # If not empty, we need to check if entries are already in db
         db_empty = False
 
-        q = self.session.query(Data).first()
+        q = session.query(Data).first()
         if q is None:
             db_empty = True
 
@@ -435,11 +435,11 @@ class database_Util(object):
                 entity = self.set_user_entity(init_dict)
                 entities.append(entity)
 
-            self.session.add_all(entities)
+            session.add_all(entities)
             try:
-                self.session.commit()
+                session.commit()
             except:
-                self.session.rollback()
+                session.rollback()
                 raise
             print('Added User rows')
 
@@ -452,11 +452,11 @@ class database_Util(object):
                 }
                 entities.append(self.set_region_entity(init_dict))
 
-            self.session.add_all(entities)
+            session.add_all(entities)
             try:
-                self.session.commit()
+                session.commit()
             except:
-                self.session.rollback()
+                session.rollback()
                 raise
             print('Added Region rows')
 
@@ -470,11 +470,11 @@ class database_Util(object):
                 }
                 entities.append(self.set_dataset_entity(init_dict))
 
-            self.session.add_all(entities)
+            session.add_all(entities)
             try:
-                self.session.commit()
+                session.commit()
             except:
-                self.session.rollback()
+                session.rollback()
                 raise
             print('Added Dataset rows')
 
@@ -490,11 +490,11 @@ class database_Util(object):
                     }
                     entities.append(self.set_parameter_entity(init_dict))
 
-            self.session.add_all(entities)
+            session.add_all(entities)
             try:
-                self.session.commit()
+                session.commit()
             except:
-                self.session.rollback()
+                session.rollback()
                 raise
             print('Added Parameter rows')
 
@@ -508,11 +508,11 @@ class database_Util(object):
                 }
                 entities.append(self.set_variable_entity(init_dict))
 
-            self.session.add_all(entities)
+            session.add_all(entities)
             try:
-                self.session.commit()
+                session.commit()
             except:
-                self.session.rollback()
+                session.rollback()
                 raise
             print('Added Variable rows')
 
@@ -531,7 +531,7 @@ class database_Util(object):
         print('Adding data in ' + str(num_chunks) + ' chunk(s) to database.')
         # Open db connection
         # Needed to bulk copy from csv
-        conn = self.session.connection()  # SQLAlchemy Connection
+        conn = session.connection()  # SQLAlchemy Connection
         dbapi_conn = conn.connection  # DBAPI connection (technically a connection pool wrapper called ConnectionFairy, but everything is there)
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
         cursor.execute("SET search_path TO myschema," + schema + ', public')
@@ -572,7 +572,7 @@ class database_Util(object):
                 else:
                     year = 9999
                 g_data = geojson_data['features'][f_idx]
-                geom_id, geom_area = self.check_if_geom_in_db(self.region, feat_idx, year)
+                geom_id, geom_area = self.check_if_geom_in_db(self.region, feat_idx, year, session)
                 if not geom_id:
                     # Convert the geojson geometry to postgis geometry using shapely
                     # Note: we convert polygons to multi polygon
@@ -586,11 +586,11 @@ class database_Util(object):
                     geometry = self.set_geom_entity(feat_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
                     # Submit the geom table to obtain the primary key geom_id
                     # geometry = Geom(**geom_init)
-                    self.session.add(geometry)
+                    session.add(geometry)
                     try:
-                        self.session.commit()
+                        session.commit()
                     except:
-                        self.session.rollback()
+                        session.rollback()
                         raise
                     geom_id = geometry.id
                     logging.info('Added Geometry row')
@@ -599,14 +599,14 @@ class database_Util(object):
                     uid_geomid_pairs = []
                     for user_id in user_ids_for_geom:
                         uid_geomid_pairs.append((user_id, geom_id))
-                    self.session.execute(GeomUserLink.insert().values(uid_geomid_pairs))
+                    session.execute(GeomUserLink.insert().values(uid_geomid_pairs))
                     print('Added Geometry row')
                 else:
                     logging.info('Geometry found in db')
                     print('Geometry found in db')
 
                 # Check if the data is in db
-                in_db = self.check_if_data_in_db(geom_id, geom_name)
+                in_db = self.check_if_data_in_db(geom_id, geom_name, session)
                 if in_db:
                     print(geom_name + '/' + str(self.year) + ' data found in db. Skipping...')
                     continue
@@ -680,9 +680,9 @@ class database_Util(object):
                     cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
                     print('Added GeomMetadata table rows for features')
             try:
-                self.session.commit()
+                session.commit()
             except:
-                self.session.rollback()
+                session.rollback()
                 raise
 
 
