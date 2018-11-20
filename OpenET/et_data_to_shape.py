@@ -1,8 +1,8 @@
-#!/Users/bdaudert/anaconda/envs/assets/bin/python
-import sys
+import os, sys
 import time
-from osgeo import gdal, osr, ogr
 import ee
+from osgeo import ogr
+from osgeo import osr
 
 def reduceRegions(ee_img, featColl, scale, proj):
     ee_reducedFeatColl = ee_img.reduceRegions(
@@ -16,49 +16,128 @@ def reduceRegions(ee_img, featColl, scale, proj):
     # aa_data= ee_reducedFeatColl.getInfo()
     return aa_data
 
-def add_to_shapefile(infile, feat_names, new_feat_data):
-    # open the shapefile
-    driver = ogr.GetDriverByName('ESRI Shapefile')
-    dataSource = driver.Open(infile, 1) # open for rw
-    if dataSource is None:
-        print "ERROR: could not open '%s' as shapefile!" % (infile)
-        sys.exit(1)
+def write_shapefile(inShapefile, omit_fields, outShapefile, new_proj,  new_field_names, new_field_data):
+    '''
 
-    layer = dataSource.GetLayer()
-    for feat_name in feat_names:
-        layer.CreateField(ogr.FieldDefn(feat_name, ogr.OFTReal))
+    :param inShapeFile: shapefile to be copied and extended
+    :param outDir:
+    :param outfileName: name outShapefile
+    :param omit_fields: inShapefile fields that will not be copied
+    :param new_feat_names: et feature names
+    :param new_feat_data: et feature data
+    :return:
+    '''
+    # Get the input Layer
+    inShapefile = "/Users/bdaudert/DATA/OpenET/Central_Valley/shapefiles/base15_ca_poly_170616.shp"
+    inDriver = ogr.GetDriverByName("ESRI Shapefile")
+    inDataSource = inDriver.Open(inShapefile, 0)
+    inLayer = inDataSource.GetLayer()
+    # inLayer.SetAttributeFilter("minor = 'HYDR'")
 
-    for i in range(layer.GetFeatureCount()):
-        feature = layer.GetFeature(i)
-        for j in range(len(feat_names)):
-            feat_name = feat_names[j]
-            val = new_feat_data[j][i]
+    # set spatial reference and transformation
+    sourceprj = inLayer.GetSpatialRef()
+    targetprj = osr.SpatialReference()
+    targetprj.ImportFromEPSG(new_proj)
+    transform = osr.CoordinateTransformation(sourceprj, targetprj)
+
+    # Create the output LayerS
+    # outShapefile = os.path.join("test_files", "base15_ca_poly_170616_DATA.shp" )
+    outDriver = ogr.GetDriverByName("ESRI Shapefile")
+
+    # Remove output shapefile if it already exists
+    if os.path.exists(outShapefile):
+        outDriver.DeleteDataSource(outShapefile)
+
+    # Create the output shapefile
+    outDataSource = outDriver.CreateDataSource(outShapefile)
+    out_lyr_name = os.path.splitext(os.path.split(outShapefile)[1])[0]
+    outLayer = outDataSource.CreateLayer(out_lyr_name, targetprj, geom_type=ogr.wkbMultiPolygon)
+
+    # Add input Layer Fields to the output Layer if it is the one we want
+    inLayerDefn = inLayer.GetLayerDefn()
+    for i in range(0, inLayerDefn.GetFieldCount()):
+        if omit_fields and omit_fields[0] == 'all':
+            continue
+        fieldDefn = inLayerDefn.GetFieldDefn(i)
+        fieldName = fieldDefn.GetName()
+        if omit_fields and fieldName in omit_fields:
+            continue
+        outLayer.CreateField(fieldDefn)
+
+    for field_name in new_field_names:
+        outLayer.CreateField(ogr.FieldDefn(field_name, ogr.OFTReal))
+
+    # Get the output Layer's Feature Definition
+    outLayerDefn = outLayer.GetLayerDefn()
+
+    # Add features to the ouput Layer
+    for k, inFeature in enumerate(inLayer):
+        # Create output Feature
+        outFeature = ogr.Feature(outLayerDefn)
+
+        # Add field values from input Layer
+        for i in range(0, outLayerDefn.GetFieldCount()):
+            if omit_fields and omit_fields[0] == 'all':
+                continue
+            # Add pre-existing fields
+            fieldDefn = outLayerDefn.GetFieldDefn(i)
+            fieldName = fieldDefn.GetName()
+            if omit_fields and fieldName in omit_fields:
+                continue
+            fieldVal = inFeature.GetField(i)
+            if isinstance(fieldVal, float):
+                fieldVal = round(fieldVal, 4)
+            outFeature.SetField(outLayerDefn.GetFieldDefn(i).GetNameRef(), fieldVal)
+
+
+        # Add the etdata
+        for j in range(len(new_field_names)):
+            feat_name = new_field_names[j]
+            val = new_field_data[j][k]
             if abs(val) < 0.0001:
-                feature.SetField(feat_name, -9999.0)
+                outFeature.SetField(feat_name, -9999.0)
             else:
-                feature.SetField(feat_name, val)
-        layer.setFeature(feature)
-        feat = None
-    dataSource = None
+                outFeature.SetField(feat_name, val)
 
+
+        # Set geometry
+        geom = inFeature.GetGeometryRef()
+        # outFeature.SetGeometry(geom.Clone())
+
+        # NEW
+        geom.Transform(transform)
+        new_geom = ogr.CreateGeometryFromWkb(geom.ExportToWkb())
+        outFeature.SetGeometry(new_geom)
+        # END NEW
+
+        # Add new feature to output Layer
+        outLayer.CreateFeature(outFeature)
+
+    # Close DataSources
+    inDataSource.Destroy()
+    outDataSource.Destroy()
 
 if __name__ == '__main__':
+    omit_fields = []
+    inShapefile = '/Users/bdaudert/DATA/OpenET/Central_Valley/shapefiles/base15_ca_poly_170616.shp'
+    outDir = 'test_files'
+    outShapefile = os.path.join("test_files", "base15_ca_poly_170616_ET_2017.shp")
     ee.Initialize()
     year = '2017'
     start = year + '-01-01'
     end = year + '-12-31'
     proj = 'EPSG:4326'
+    new_proj = 4326
     scale = 30
     var_name = 'et_actual'
     featColl = ee.FeatureCollection('users/bdaudert/base15_ca_poly_170616')
-    shapefile = 'test_files/base15_ca_poly_170616.shp'
-    feat_names = []
-    feat_data = []
+    field_names = []
+    field_data = []
+    omit_fields = ['all']
 
     start_time = time.time()
-
     coll_name = 'projects/usgs-ssebop/et/conus/monthly/v0'
-    ee_coll = ee.ImageCollection(coll_name).\
+    ee_coll = ee.ImageCollection(coll_name). \
         filterDate(start, end).select(var_name)
     '''
     print('Getting monthly data')
@@ -73,15 +152,11 @@ if __name__ == '__main__':
 
 
     print('Getting annual data')
-    feat_names.append('et_' + year)
+    field_names.append('et_' + year)
     coll_name = 'projects/usgs-ssebop/et/conus/annual/v1'
-    ee_img = ee.Image(ee.ImageCollection(coll_name).\
-        filterDate(start, end).select(var_name).sum().unmask())
-    feat_data.append(reduceRegions(ee_img, featColl, scale, proj))
+    ee_img = ee.Image(ee.ImageCollection(coll_name). \
+                      filterDate(start, end).select(var_name).sum().unmask())
+    field_data.append(reduceRegions(ee_img, featColl, scale, proj))
 
-    print('Adding to shapefile')
-    add_to_shapefile(shapefile, feat_names, feat_data)
 
-    print("--- %s seconds ---" % (str(time.time() - start_time)))
-    print("--- %s minutes ---" % (str((time.time() - start_time) / 600.0)))
-    print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
+    write_shapefile(inShapefile, omit_fields, outShapefile, new_proj, field_names, field_data)
