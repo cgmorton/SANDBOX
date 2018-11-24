@@ -41,25 +41,38 @@ def testLoad(serverDS, table, sourceFile):
 ######################################
 
 if __name__ == '__main__':
-
-    start_time = time.time()
-
-    shapefile = '/Users/bdaudert/SANDBOX/OpenET/test_files/base15_ca_poly_170616_DATA_ALL.shp'
-    schema = 'shape_test'
-    table = schema + '.data_all'
-
     DB_USER = os.environ['DB_USER']
     DB_PASSWORD = os.environ['DB_PASSWORD']
     DB_PORT = os.environ['DB_PORT']
     DB_HOST = os.environ['DB_HOST']
     DB_NAME = os.environ['DB_NAME']
+    connectionString = "PG:dbname='%s' host='%s' port='%s' user='%s' password = '%s'" % (DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD)
 
-    connectionString = "PG:dbname='%s' host='%s' port='%s' user='%s' password = '%s'" % (DB_NAME,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD)
+    base_dir = '/Users/bdaudert/SANDBOX/POSTGIS/test_files'
+    full_dir = os.walk(base_dir)
+    schema = 'shape_test'
+
+    start_time = time.time()
+    # Find shapefiles
+    shapefile_list = []
+    for source, dirs, files in full_dir:
+        for file_ in files:
+            if file_[-3:] == 'shp':
+                print("Found Shapefile " + str(file_))
+                shapefile_path = base_dir + '/' + file_
+                shapefile_list.append(shapefile_path)
 
     ogrds = ogr.Open(connectionString)
-    name = testLoad(ogrds, table, shapefile)
-    print(name)
-    #    ogrds.DeleteLayer(table)
+    for shapefile in shapefile_list:
+        table_name = schema  + '.' + os.path.splitext(os.path.basename(shapefile))[0]
+        print('LOOOOK')
+        print(table_name)
+        # table_name = schema + '.data_all'
+
+        name = testLoad(ogrds, table_name, shapefile)
+        print(name)
+
+    # ogrds.DeleteLayer(table)
 
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))

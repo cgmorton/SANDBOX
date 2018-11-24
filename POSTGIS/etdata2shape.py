@@ -84,7 +84,12 @@ def write_shapefile(inShapefile, omit_fields, outShapefile, new_proj,  new_field
             fieldName = fieldDefn.GetName()
             if omit_fields and fieldName in omit_fields:
                 continue
-            fieldVal = inFeature.GetField(i)
+            # FIX ME: Invalid Index 23 error
+            try:
+                fieldVal = inFeature.GetField(i)
+            except:
+                continue
+
             if isinstance(fieldVal, float):
                 fieldVal = round(fieldVal, 4)
             outFeature.SetField(outLayerDefn.GetFieldDefn(i).GetNameRef(), fieldVal)
@@ -114,18 +119,20 @@ def write_shapefile(inShapefile, omit_fields, outShapefile, new_proj,  new_field
         outLayer.CreateFeature(outFeature)
 
     # Close DataSources
+    '''
     inDataSource.Destroy()
     outDataSource.Destroy()
+    '''
+    inDataSource = None
+    outDataSource = None
 
 if __name__ == '__main__':
+    ee.Initialize()
     omit_fields = []
     inShapefile = '/Users/bdaudert/DATA/OpenET/Central_Valley/shapefiles/base15_ca_poly_170616.shp'
     outDir = 'test_files'
-    outShapefile = os.path.join("test_files", "base15_ca_poly_170616_ET_2017.shp")
-    ee.Initialize()
-    year = '2017'
-    start = year + '-01-01'
-    end = year + '-12-31'
+
+
     proj = 'EPSG:4326'
     new_proj = 4326
     scale = 30
@@ -133,30 +140,47 @@ if __name__ == '__main__':
     featColl = ee.FeatureCollection('users/bdaudert/base15_ca_poly_170616')
     field_names = []
     field_data = []
-    omit_fields = ['all']
+
+    # Copy all columns from original shapefile
+    omit_fields = []
+    outShapefile = os.path.join("test_files", "base15_ca_poly_170616_ALL_2015_2017.shp")
+    # Only save ET data
+    # omit_fields = ['all']
+    # outShapefile = os.path.join("test_files", "base15_ca_poly_170616_ET_ONLY_2015_2017.shp")
 
     start_time = time.time()
-    coll_name = 'projects/usgs-ssebop/et/conus/monthly/v0'
-    ee_coll = ee.ImageCollection(coll_name). \
-        filterDate(start, end).select(var_name)
-    '''
-    print('Getting monthly data')
-    for m_int in range(1,13):
-        m_str = str(m_int)
-        if len(m_str) < 10:
-            m_str = '0' + m_str
-        feat_names.append('et_' + year + '_' + m_str)
-        ee_img = ee.Image(ee_coll.filter(ee.Filter.calendarRange(m_int, m_int, 'month')).sum().unmask())
-        feat_data.append(reduceRegions(ee_img, featColl, scale, proj)) 
-    '''
 
+    # Get data for last three fulll years
+    for year_int in range(2015, 2018):
+        year = str(year_int)
+        start = year + '-01-01'
+        end = year + '-12-31'
 
-    print('Getting annual data')
-    field_names.append('et_' + year)
-    coll_name = 'projects/usgs-ssebop/et/conus/annual/v1'
-    ee_img = ee.Image(ee.ImageCollection(coll_name). \
-                      filterDate(start, end).select(var_name).sum().unmask())
-    field_data.append(reduceRegions(ee_img, featColl, scale, proj))
+        '''
+        print('Getting monthly data ' + year)
+        coll_name = 'projects/usgs-ssebop/et/conus/monthly/v0'
+        ee_coll = ee.ImageCollection(coll_name). \
+            filterDate(start, end).select(var_name)
+        for m_int in range(1,13):
+            print('Month: ' + str(m_int))
+            m_str = str(m_int)
+            if len(m_str) < 10:
+                m_str = '0' + m_str
+            field_names.append('et_' + year + '_' + m_str)
+            ee_img = ee.Image(ee_coll.filter(ee.Filter.calendarRange(m_int, m_int, 'month')).sum().unmask())
+            field_data.append(reduceRegions(ee_img, featColl, scale, proj))
+        '''
 
+        print('Getting annual data ' + year)
+        field_names.append('et_' + year)
+        coll_name = 'projects/usgs-ssebop/et/conus/annual/v1'
+        ee_img = ee.Image(ee.ImageCollection(coll_name). \
+                          filterDate(start, end).select(var_name).sum().unmask())
+        field_data.append(reduceRegions(ee_img, featColl, scale, proj))
 
+    print('Writing shapefile')
     write_shapefile(inShapefile, omit_fields, outShapefile, new_proj, field_names, field_data)
+
+    print("--- %s seconds ---" % (str(time.time() - start_time)))
+    print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
+    print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
