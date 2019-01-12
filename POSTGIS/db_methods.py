@@ -21,42 +21,45 @@ from geoalchemy2.types import Geometry
 import geojson
 
 import config
-
-
-#######################################
-# OpenET database tables
-#######################################
-Base = declarative_base()
-# schema='openet geodatabase'
-schema = 'test'
-# schema = 'public'
-Base.metadata = db.MetaData(schema=schema)
-
-event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
-
-class Region(Base):
-    # States, Counties, HUCs or fields or custom
-    __tablename__ = 'region'
+class User(Base):
+    __tablename__ = 'user'
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
-    geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
+    email = db.Column(db.String())
+    last_login = db.Column(db.DateTime())
+    joined =  db.Column(db.DateTime())
+    ip = db.Column(db.String())
+    notes = db.Column(db.String())
+    active = db.Column(db.String())
+    role = db.Column(db.String())
+
+    geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-
-class Dataset(Base):
-    __tablename__ = 'dataset'
+class Model(Base):
+    __tablename__ = 'model'
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     ee_collection = db.Column(db.String())
-    parameters = relationship('Parameter', back_populates='dataset', cascade='save-update, merge, delete')
-    data = relationship('Data', back_populates='dataset', cascade='save-update, merge, delete')
+    model_collection = db.Column(db.String())
+
+    data = relationship('Data', back_populates='model', cascade='save-update, merge, delete')
+    parameters = relationship('Parameters', back_populates='model', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
+
+class ModelMetadata(Base):
+    __tablename__ = 'model_metadata'
+    __table_args__ = {'schema': schema}
+    id = db.Column(db.Integer(), primary_key=True)
+    model_name = db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.name'), nullable=False)
+    name = db.Column(db.String())
+    properties = db.Column(db.String())
 
 class Variable(Base):
     __tablename__ = 'variable'
@@ -64,7 +67,9 @@ class Variable(Base):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String())
     units = db.Column(db.String())
+
     data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
+    parameters = relationship('Parameters', back_populates='variable', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -75,40 +80,16 @@ GeomUserLink = db.Table('geom_user_link', Base.metadata,
     db.Column('geom_id', db.Integer, db.ForeignKey('geom.id', ondelete='cascade', onupdate='cascade'))
 )
 
-
-class User(Base):
-    __tablename__ = 'user'
-    __table_args__ = {'schema': schema}
-    id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.String())
-    email = db.Column(db.String())
-    last_login = db.Column(db.DateTime())
-    joined =  db.Column(db.DateTime())
-    ip = db.Column(db.String())
-    password = db.Column(db.String())
-    notes = db.Column(db.String())
-    active = db.Column(db.String())
-    role = db.Column(db.String())
-    geometries = relationship('Geom', secondary=GeomUserLink, back_populates='users', cascade='save-update, merge, delete')
-
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-
 class Geom(Base):
     __tablename__ = 'geom'
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     # user_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.id'), nullable=False)
-    year = db.Column(db.Integer())
-    region_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'region.id'), nullable=False)
-    feature_index = db.Column(db.Integer())
-    name = db.Column(db.String())
     type = db.Column(db.String())
-    area = db.Column(db.Float(precision=4))
-    coords = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
-    region = relationship('Region', back_populates='geometries', cascade='save-update, merge, delete')
-    meta_data = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
+    year = db.Column(db.Integer())
+    postgis_geom = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
+
+    metadata = relationship('GeomMetadata', back_populates='geom', cascade='save-update, merge, delete')
     data = relationship('Data', back_populates='geom', cascade='save-update, merge, delete')
     users = relationship('User', secondary=GeomUserLink, back_populates='geometries', cascade='save-update, merge, delete')
 
@@ -123,19 +104,24 @@ class GeomMetadata(Base):
     geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), nullable=False)
     name = db.Column(db.String())
     properties = db.Column(db.String())
-    geom = relationship('Geom', back_populates='meta_data', cascade='save-update, merge, delete')
+
+    geom = relationship('Geom', back_populates='metadata', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-class Parameter(Base):
+class Parameters(Base):
     __tablename__ = 'parameter'
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
-    dataset_id = db.Column(db.Integer(), db.ForeignKey(schema + '.'  + 'dataset.id'), nullable=False)
-    name = db.Column(db.String())
-    properties =  db.Column(db.String())
-    dataset = relationship('Dataset', back_populates='parameters', cascade='save-update, merge, delete')
+    variable_name = db.Column(db.String(), db.ForeignKey(schema + '.'  + 'variable.name'), nullable=False)
+    model_name = db.Column(db.String(), db.ForeignKey(schema + '.'  + 'model.name'), nullable=False)
+    name =  db.Column(db.String())
+    properties = db.Column(db.String())
+
+    variable = relationship('Variable', back_populates='parameters', cascade='save-update, merge, delete')
+    model = relationship('Model', back_populates='parameters', cascade='save-update, merge, delete')
+
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -146,20 +132,44 @@ class Data(Base):
     __table_args__ = {'schema': schema}
     id = db.Column(db.Integer(), primary_key=True)
     geom_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'geom.id'), nullable=False)
-    geom_name = db.Column(db.String())
-    geom_area = db.Column(db.Float(precision=4))
-    year = db.Column(db.Integer())
-    dataset_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'dataset.id'), nullable=False)
-    variable_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'variable.id'), nullable=False)
+    model_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.name'), nullable=False)
+    variable_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'variable.name'), nullable=False)
     temporal_resolution = db.Column(db.String())
     data_date = db.Column(db.DateTime())
     data_value = db.Column(db.Float(precision=4))
+
     geom = relationship('Geom', back_populates='data', cascade='save-update, merge, delete')
-    dataset = relationship('Dataset', back_populates='data', cascade='save-update, merge, delete')
+    model = relationship('Model', back_populates='data', cascade='save-update, merge, delete')
     variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
+
+#######################################
+# OpenET database tables
+#######################################
+Base = declarative_base()
+# schema='openet geodatabase'
+schema = 'test'
+# schema = 'public'
+Base.metadata = db.MetaData(schema=schema)
+
+event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
+
+'''
+class Region(Base):
+    # States, Counties, HUCs or fields or custom
+    __tablename__ = 'region'
+    __table_args__ = {'schema': schema}
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String())
+    geometries = relationship('Geom', back_populates='region', cascade='save-update, merge, delete')
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+'''
+
+
 
 #######################################
 # END OpenET database tables
@@ -171,26 +181,26 @@ class database_Util(object):
     Method:
         - The base query is defined from relevant template values
     Args:
-        :region Unique ID of geojson obbject, e.g. USFields
-        :dataset MODSI, Landsat or gridMET
-        :year year of geojson dataset, might be ALL if not USFields
+        :region Unique ID of geojson file containing fields for the region
+        :model SSEBop etc
+        :year year of geojson model, might be ALL if not USFields
             USField geojsons change every year
     '''
-    def __init__(self, region, dataset, year, user_id, region_changing_by_year):
+    def __init__(self, region, model, year, user_id, region_changing_by_year):
         self.region = region
         self.year = int(year)
-        self.dataset = dataset
+        self.model = model
         self.user_id = user_id
         self.geo_bucket_url = config.GEO_BUCKET_URL
         self.data_bucket_url = config.DATA_BUCKET_URL
         self.region_changing_by_year = region_changing_by_year
 
         # Used to read geometry data from buckets
-        if self.region in ['Mason', 'US_fields']:
+        if self.region_changing_by_year:
             # Field boundaries depend on years
-            self.geoFName = region + '_' + str(year) + '_GEOM.geojson'
+            self.geoFName = region + '_' + str(year) + '.geojson'
         else:
-            self.geoFName = region + '_GEOM.geojson'
+            self.geoFName = region + '.geojson'
         self.dataFName = region + '_' + str(year) + '_DATA'  '.json'
 
     def object_as_dict(self, obj):
@@ -273,7 +283,7 @@ class database_Util(object):
         All et data are stored in cloud buckets
         :return:
         '''
-        url = self.data_bucket_url + self.dataset + '/' + self.dataFName
+        url = self.data_bucket_url + self.model + '/' + self.dataFName
         print('Reading data from bucket file ' + url)
         d = json.load(urllib2.urlopen(url))
         '''
@@ -310,34 +320,41 @@ class database_Util(object):
                 raise
             num_added = end
 
-    def check_if_data_in_db(self, geom_id, geom_name, session):
+    def check_if_data_in_db(self, geom_id, session):
         # Check if this entry is already in db
         in_db =  False
         QU = query_Util({
             'region': self.region,
-            'dataset': self.dataset,
+            'model': self.model,
             'year': self.year,
             'temporal_resolution': 'monthly',
             'variable': 'et'
         }, session)
-        in_db = QU.check_if_data_in_db(geom_id, geom_name)
+        in_db = QU.check_if_data_in_db(geom_id)
         return in_db
 
-    def check_if_geom_in_db(self, region, f_idx, year, session):
-        geom_query = session.query(Geom).filter(
-            Geom.region_id == config.statics['db_id_region'][region],
-            Geom.feature_index == int(f_idx),
+    def check_if_geom_in_db(self, region, feature_index, year, session):
+        geom_query = session.query(Geom, GeomMetadata).filter(
+            GeomMetadata.name == "feature_index",
+            GeomMetadata.properties == feature_index
+
+        ).filter(
+            GeomMetadata.name == "collection_id",
+            GeomMetadata.properties == region
+        ).filter(
             Geom.year == year
+        ).filter(
+            Geom.id == GeomMetadata.geom_id
         )
+
         if len(geom_query.all()) == 0:
             return None, None
         if len(geom_query.all()) > 1:
-            logging.error('Multiple geometries for ' + region + '/' + str(f_idx) + '/' + str(year))
+            logging.error('Multiple geometries for ' + region + '/' + str(feature_index) + '/' + str(year))
             return -9999, None
         geom = geom_query.first()
         geom_id = geom.id
-        geom_area = geom.area
-        return geom_id, geom_area
+        return geom_id
 
     def set_postgis_geometry(self, shapely_geom):
         postgis_geom = None
@@ -349,173 +366,106 @@ class database_Util(object):
             postgis_geom = from_shape(shapely_geom)
         return postgis_geom
 
-    def set_user_entity(self, user_dict):
-        return User(**user_dict)
-
-    def set_region_entity(self, region_dict):
-        return Region(**region_dict)
-
-    def set_dataset_entity(self, dataset_dict):
-        return Dataset(**dataset_dict)
-
-    def set_variable_entity(self, variable_dict):
-        return Variable(**variable_dict)
-
-    def set_geom_metadata_entity(self, metadata_dict):
-        return GeomMetadata(**metadata_dict)
-
-    def set_geom_entity(self, feat_idx, geom_name, geom_type, postgis_geom, year, area):
+    def set_geom_entity(self, geom_type, postgis_geometry, year):
         '''
         Adds the geometry row to database and retrieves the automatically
         assigned primary key geom_id
         # Note: primary key is AUTOSET in db
         '''
         geometry = Geom(
-            # user_id=self.user_id,
+            # user_id = self.user_id,
+            type = geom_type,
             year=int(year),
-            region_id=config.statics['db_id_region'][self.region],
-            feature_index=feat_idx,
-            name=geom_name,
-            type=geom_type,
-            area=area,
-            coords=postgis_geom
+            postgis_geom=postgis_geometry
         )
         return geometry
 
-    def set_parameter_entity(self, parameter_dict):
-        return Parameter(**parameter_dict)
+    def add_entities_to_db(self, session, entities):
+        session.add_all(entities)
+        try:
+            session.commit()
+        except:
+            session.rollback()
+            raise
 
-    def set_data_entity(selfself, data_dict):
-        return Data(**data_dict)
+
+    def set_database_tables(self, session):
+        # User
+        entities = []
+        for user_id in config.statics['users'].keys():
+            init_dict = config.statics['users'][user_id]
+            init_dict['last_login'] = dt.datetime.today()
+            init_dict['joined'] = dt.datetime.today()
+
+            entities.append(User(**init_dict))
+        self.add_entities_to_db(session, entities)
+        print('Added User Table')
+
+        # Model
+        entities = []
+        for model_name in config.statics['models'].keys():
+            init_dict = config.statics['models'][model_name]
+            # This goes into the parameter table
+            del init_dict['parameters']
+            # This goes into the model_metdata table
+            del init_dict['metadata']
+            entities.append(Model(**init_dict))
+        self.add_entities_to_db(session, entities)
+        print('Added Model Table')
+
+        # ModelMetdata
+        entities = []
+        for model_name in config.statics['models'].keys():
+            init_dict = config.statics['models'][model_name]['metadata']
+            entities.append(ModelMetadata(**init_dict))
+        self.add_entities_to_db(session, entities)
+        print('Added ModelMetadata Table')
+
+        # Variable
+        entities = []
+        for var_name in config.statics['variables'].keys():
+            init_dict = config.statics['variables'][var_name]
+            entities.append(Variable(**init_dict))
+        self.add_entities_to_db(session, entities)
+        print('Added Variable rows')
+
+        # Parameters (depends on model AND variable)
+        entities = []
+        for model_name in config.statics['parameters'].keys():
+            for var_name in config.statics['parameters'][model_name].keys():
+                init_dict = config.statics['parameters'][model_name][var_name]
+                entities.append(Parameters(**init_dict))
+        self.add_entities_to_db(session, entities)
+        print('Added Parameter rows')
+
+        # NOTE: Geom, GeomMetdata tables are set later
 
 
-
-    def add_data_to_db(self, etdata, geojson_data, session):
+    def add_data_to_db(self, session, user_id=0, etdata=None, geojson_data=None):
         '''
         Add data to database
         :return:
         '''
         # Read etdata from bucket
-        '''
-        etdata = self.read_etdata_from_bucket()
-        geojson_data = self.read_geodata_from_bucket()
-        '''
+        if etdata is None:
+            etdata = self.read_etdata_from_bucket()
+
+        if geojson_data is None:
+            geojson_data = self.read_geodata_from_bucket()
 
         # Set the user ids associated with this region
-        user_ids_for_geom = config.statics['db_region_users'][self.region]
+        user_ids_for_geom = config.statics['regions'][self.region]['users']
 
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
         db_empty = False
-
         q = session.query(Data).first()
         if q is None:
             db_empty = True
-
         if db_empty:
-            # Set up region, dataset, parameter and variable tables
+            # Set up region, model, parameter and variable tables
             print('Database empty, setting up basic data tables')
-
-            # Users
-            entities = []
-            for key in config.statics['db_id_user'].keys():
-                user_id = config.statics['db_id_user'][key]
-                init_dict = {
-                    'id': user_id,
-                    'name': key,
-                    'email': 'None',
-                    'last_login': dt.datetime.today(),
-                    'joined': dt.datetime.today(),
-                    'ip': '',
-                    'password': 'None',
-                    'notes': 'Public user has access to all public geometries',
-                    'active': 'active',
-                    'role': 'guest'
-                }
-                entity = self.set_user_entity(init_dict)
-                entities.append(entity)
-
-            session.add_all(entities)
-            try:
-                session.commit()
-            except:
-                session.rollback()
-                raise
-            print('Added User rows')
-
-            # Regions
-            entities = []
-            for key in config.statics['db_id_region'].keys():
-                init_dict = {
-                    'id': config.statics['db_id_region'][key],
-                    'name': key
-                }
-                entities.append(self.set_region_entity(init_dict))
-
-            session.add_all(entities)
-            try:
-                session.commit()
-            except:
-                session.rollback()
-                raise
-            print('Added Region rows')
-
-            # Datasets
-            entities = []
-            for key in config.statics['db_id_dataset'].keys():
-                init_dict = {
-                    'id': config.statics['db_id_dataset'][key],
-                    'name': key,
-                    'ee_collection': config.statics['ee_collection'][key],
-                }
-                entities.append(self.set_dataset_entity(init_dict))
-
-            session.add_all(entities)
-            try:
-                session.commit()
-            except:
-                session.rollback()
-                raise
-            print('Added Dataset rows')
-
-            # Parameters
-            entities = []
-            for key in config.statics['db_id_parameters_by_dataset'].keys():
-                params = config.statics['db_id_parameters_by_dataset'][key]
-                for param in params:
-                    init_dict = {
-                        'id': config.statics['db_id_parameter'][param],
-                        'name': param,
-                        'properties': '',
-                    }
-                    entities.append(self.set_parameter_entity(init_dict))
-
-            session.add_all(entities)
-            try:
-                session.commit()
-            except:
-                session.rollback()
-                raise
-            print('Added Parameter rows')
-
-            # Variables
-            entities = []
-            for key in config.statics['db_id_variable'].keys():
-                init_dict = {
-                    'id': config.statics['db_id_variable'][key],
-                    'name': key,
-                    'units': config.statics['units'][key],
-                }
-                entities.append(self.set_variable_entity(init_dict))
-
-            session.add_all(entities)
-            try:
-                session.commit()
-            except:
-                session.rollback()
-                raise
-            print('Added Variable rows')
-
+            self.set_database_tables(session)
 
         # Loop over features in bucket file, do in chunks
         # Oherwise we get a kill9 error
@@ -541,7 +491,6 @@ class database_Util(object):
             data_entities = []
             meta_entities = []
             '''
-
             csv_metadata = open('metadata.csv', 'wb+')
             csv_data = open('data.csv', 'wb+')
             csv_mwriter = csv.writer(csv_metadata, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -553,6 +502,7 @@ class database_Util(object):
                 idx_end = len(etdata['features'])
             for f_idx in range(idx_start, idx_end):
                 feat_idx = f_idx +1
+                '''
                 # Find the geometry name
                 geom_name = 'Not found'
                 for name_prop in config.statics['geom_name_keys']:
@@ -562,7 +512,7 @@ class database_Util(object):
                         break
                     except:
                         continue
-
+                '''
                 print('Adding Feature '  + str(f_idx + 1))
 
                 # Geometry data table
@@ -583,37 +533,32 @@ class database_Util(object):
                     if postgis_geom is None:
                         raise Exception('Not a valid geometry, must be polygon or multi polygon!')
                     # Add the geometry table entry for this feature and obtain the geometry id
-                    geometry = self.set_geom_entity(feat_idx, geom_name, shapely_geom.geom_type, postgis_geom, year, geom_area)
+                    geometry = self.set_geom_entity(feat_idx, shapely_geom.geom_type, postgis_geom, year)
                     # Submit the geom table to obtain the primary key geom_id
-                    # geometry = Geom(**geom_init)
-                    session.add(geometry)
-                    try:
-                        session.commit()
-                    except:
-                        session.rollback()
-                        raise
+                    self.add_entities_to_db(self, session, [geometry])
+                    # Get the geometry primary key from db
                     geom_id = geometry.id
-                    logging.info('Added Geometry row')
+                    logging.info('Added Geometry Table')
                     # Add the many-to-many relationship between user and geom
                     # (user_id, geom_id pairs)
                     uid_geomid_pairs = []
                     for user_id in user_ids_for_geom:
                         uid_geomid_pairs.append((user_id, geom_id))
                     session.execute(GeomUserLink.insert().values(uid_geomid_pairs))
-                    print('Added Geometry row')
+                    print('Added GeomUserLink Table')
                 else:
                     logging.info('Geometry found in db')
                     print('Geometry found in db')
 
                 # Check if the data is in db
-                in_db = self.check_if_data_in_db(geom_id, geom_name, session)
+                in_db = self.check_if_data_in_db(geom_id, session)
                 if in_db:
-                    print(geom_name + '/' + str(self.year) + ' data found in db. Skipping...')
+                    print('Data for geom_id/year ' + str(geom_id) + '/' + str(self.year) + ' found in db. Skipping...')
                     continue
 
                 f_data = etdata['features'][f_idx]
                 # Set the geometry metadata and data tables for bulk ingest
-                for key in config.statics['geom_meta_cols'][self.region]:
+                for key in config.statics['regions'][self.region]['metadata']:
                     try:
                         value = str(g_data['properties'][key])
                     except:
@@ -630,14 +575,10 @@ class database_Util(object):
                     csv_mwriter.writerow([geom_id, key, value])
 
 
-                dataset_id = config.statics['db_id_dataset'][self.dataset]
                 # Variable loop
-                for var in config.statics['all_variable'][self.dataset].keys():
-                    variable_id =  config.statics['db_id_variable'][var]
-                    # Populate the data columns
-                    for t_res in config.statics['all_temporal_resolution'].keys():
-                        temporal_resolution = t_res
-                        for data_var in config.statics['var_data_by_tres'][t_res]:
+                for var in config.statics['models'][self.model]['variables']:
+                    for t_res in config.statics['temporal_resolution'].keys():
+                        for data_var in config.statics['temporal_resoution'][t_res]['data_vars']:
                             # Set date
                             DU = date_Util()
                             data_date = DU.get_dbtable_datetime(self.year, t_res, data_var)
@@ -649,18 +590,15 @@ class database_Util(object):
                             '''
                             init_dict = {
                                 'geom_id': geom_id,
-                                'geom_name': geom_name,
-                                'geom_area': geom_area,
-                                'year': self.year,
-                                'dataset_id': dataset_id,
-                                'variable_id': variable_id,
-                                'temporal_resolution': temporal_resolution,
+                                'model_name': self.model,
+                                'variable_name': var,
+                                'temporal_resolution': t_res,
                                 'data_date': data_date,
                                 'data_value': data_value
                             }
                             data_entities.append(self.set_data_entity(init_dict))
                             '''
-                            row = [geom_id, geom_name, geom_area, self.year, dataset_id, variable_id, temporal_resolution, data_date, data_value]
+                            row = [geom_id, self.model, var, t_res, data_date, data_value]
                             csv_dwriter.writerow(row)
 
             csv_metadata.close()
@@ -669,7 +607,7 @@ class database_Util(object):
             # Commit the geom metadata and data for all features
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
-                    cols = ('geom_id', 'geom_name', 'geom_area', 'year', 'dataset_id', 'variable_id',
+                    cols = ('geom_id', 'model_name', 'variable_name',
                             'temporal_resolution', 'data_date', 'data_value')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
                     print('Added Data tables for features')
@@ -775,14 +713,13 @@ class query_Util(object):
         return {c.key: getattr(obj, c.key)
                 for c in inspect(obj).mapper.column_attrs}
 
-    def check_if_data_in_db(self, geom_id, geom_name):
+    def check_if_data_in_db(self, geom_id):
         data_query = self.session.query(Data).filter(
             Data.geom_id == int(geom_id),
-            Data.geom_name == geom_name,
             Data.year == int(self.tv_vars['year']),
-            Data.dataset_id == config.statics['db_id_dataset'][self.tv_vars['dataset']],
+            Data.model_name == self.tv_vars['model'],
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
-            Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']]
+            Data.variable_name == self.tv_vars['variable']
         )
         if len(data_query.all()) != 0:
             return True
@@ -812,7 +749,7 @@ class query_Util(object):
                 Geom.name.in_(geom_names)
             ).\
             filter(
-                Data.dataset_id == config.statics['db_id_dataset'][self.tv_vars['dataset']],
+                Data.model_id == config.statics['db_id_model'][self.tv_vars['model']],
                 Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']],
                 Data.temporal_resolution == self.tv_vars['temporal_resolution'],
                 Data.data_date.in_(dates_list)
@@ -829,7 +766,7 @@ class query_Util(object):
             Geom.name.in_(geom_names)
         ). \
             filter(
-            Data.dataset_id == config.statics['db_id_dataset'][self.tv_vars['dataset']],
+            Data.model_id == config.statics['db_id_model'][self.tv_vars['model']],
             Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']],
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
             Data.data_date.in_(dates_list)
@@ -868,7 +805,7 @@ class query_Util(object):
         # Query data table
         data_query = self.session.query(Data).filter(
             Data.geom_id.in_(geom_id_list),
-            Data.dataset_id == config.statics['db_id_dataset'][self.tv_vars['dataset']],
+            Data.model_id == config.statics['db_id_model'][self.tv_vars['model']],
             Data.variable_id == config.statics['db_id_variable'][self.tv_vars['variable']],
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
             Data.data_date.in_(dates_list)

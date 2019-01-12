@@ -1,171 +1,120 @@
 {
   "ingest_chunk_size": 500,
-  "simple_form_options": [
-    "dataset",
-    "region",
-    "temporal_resolution",
-    "year",
-    "months"
-  ],
-  "variable_defaults": {
-    "populate_db": {
-      "region": ["US_states_west_500k"],
-      "dataset": "SSEBop",
-      "year": ["2003"]
+  "regions": {
+    "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset": {
+      "users": [0],
+      "metadata": ["OBJECTID", "BASIN"]
     },
-    "query_db": {
-      "region": "US_states_west_500k",
-      "dataset": "SSEBop",
-      "variable": "et",
-      "temporal_resolution": "monthly",
-      "months": ["01"],
-      "year": "2003",
-      "features": ["all"]
+    "BRC_Combined_subset_2009": {
+      "users": [0],
+      "metadata": ["OBJECTID"]
+    },
+    "WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr": {
+      "users": [0],
+      "metadata": []
+    },
+    "usgs_central_valley_mod_base15_ca_poly_170616": {
+      "users": [0],
+      "metadata": ["BASIN"]
+    },
+    "paso_robles_base15_ca_poly_170616": {
+      "users": [0],
+      "metadata": ["COUNTY", "SimsID"]
     }
   },
-  "all_region": {
-    "US_states_west_500k": "States, Western US",
-    "US_counties_west_500k": "Counties, Western US",
-    "Mason": "Mason Valley Fields",
-    "CentralValley_15": "Central Valley Fields"
-  },
-  "all_dataset": {
-    "SSEBop": "SSEBop"
-  },
-  "all_variable": {
-      "SSEBop": {
-        "et": "Actual ET",
-        "etrf": "Fractional ET",
-        "etr": "Reference ET",
-        "pr": "Precipitation"
-      }
-  },
-  "all_temporal_resolution": {
-    "monthly": "Monthly",
-    "seasonal": "Seasonal",
-    "annual": "Annual"
-  },
-  "all_year": {
-    "SSEBop": ["2003", "2011"],
-    "MODIS": ["2003", "2011"],
-    "Landsat":["1984", "2011"],
-    "gridMet":["1979", "2011"]
-  },
-  "all_months": {
-    "all": "All",
-    "01": "January",
-    "02": "February",
-    "03": "March",
-    "04": "April",
-    "05": "May",
-    "06": "June",
-    "07": "July",
-    "08": "August",
-    "09": "September",
-    "10": "October",
-    "11": "November",
-    "12": "December"
-  },
-  "all_features": [
-    "all", "1", "2", "3"
-  ],
-  "ee_collection": {
-    "MODIS": "asdkaklsd",
-    "Landsat": "asdaks",
-    "SSEBop": "al;sa"
-  },
-  "units": {
-    "et": "mm",
-    "etrf": "mm",
-    "etr": "mm",
-    "pr": "mm"
-  },
   "regions_changing_by_year": [],
-  "db_id_user": {
-    "Public": 0
+  "study_area_properties": {
+    "study_areas": {
+        "geojson": "",
+        "field_boundaries": ""
+    },
+    "WBDHU4_Truckee_Carson_Walker": {
+        "geojson": "WBDHU4_Truckee_Carson_Walker.geojson",
+        "field_boundaries": "METRIC_NV_agpoly_subset.geojson",
+        "field_metadata": ["OBJECTID", "BASIN"]
+    },
+    "WBDHU8_Bear": {
+        "geojson": "WBDHU8_Bear.geojson",
+        "field_boundaries": "BRC_Combined_subset_2009.geojson",
+        "field_metadata": ["OBJECTID"]
+    },
+    "WBDHU8_Malheur": {
+        "geojson": "WBDHU8_Malheur.geojson",
+        "field_boundaries": "harney_field_boundaries_2016_sw_gw_irr.geojson",
+        "field_metadata": []
+    },
+    "usgs_central_valley_mod": {
+        "geojson": "usgs_central_valley_mod.geojson",
+        "field_boundaries": "usgs_central_valley_fields_mod",
+        "field_metadata": ["BASIN"]
+    },
+    "paso-robles": {
+        "geojson": "paso-robles.geojson",
+        "field_boundaries": "",
+        "field_metadata": ["COUNTY", "SimsID"]
+    }
   },
-  "db_id_region": {
-    "Custom": 0,
-    "US_states_west_500k": 1,
-    "US_counties_west_500k": 2,
-    "Mason": 3,
-    "CentralValley_15": 4
+  "models": {
+    "ssebop": {
+      "name": "SSEBop",
+      "variables": ["et", "etnet"]
+      "valid_year_range": ["2003", "2011"],
+      "ee_collection": "projects/usgs-ssebop/et/conus/monthly/v0",
+      "model_collection": "1",
+      "metadata": {}
+    }
   },
-  "db_id_dataset": {
-    "MODIS": 1,
-    "Landsat": 2,
-    "SSEBop": 3
+  "variables": {
+    "et": {
+      "name": "Actual ET",
+      "units": "mm"
+    },
+    "etnet": {
+      "name": "Net ET",
+      "units": "mm"
+    },
+    "ndvi": {
+      "name": "Vegetation Index",
+      "units": ""
+    },
+    "ppt": {
+      "name": "Precipitation Index",
+      "units": "mm"
+    }
   },
-  "db_id_parameters_by_dataset": {
-    "MODIS": [],
-    "Landsat": [],
-    "SSEBop": []
+  "parameters": {
+    "ssebop": {
+      "et": {
+      },
+      "etnet": {
+      },
+     "ndvi": {
+      },
+      "ppt": {
+      }
+    }
   },
-  "db_id_variable": {
-    "et": 1,
-    "etrf": 2,
-    "etr": 3,
-    "pr": 4
+  "temporal_resolution": {
+    "monthly": {
+      "name": "Monthly",
+      "data_vars": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10", "m11", "m12"]
+    },
+    "annual": {
+      "name": "Annual",
+      "data_vars": ["annual"]
+    }
   },
-  "db_id_parameter": {
-    "NDVI": 1,
-    "PPT": 2,
-    "ET0": 3,
-    "ETR": 4
-  },
-  "db_query_fields": [
-    "region",
-    "dataset",
-    "variable",
-    "feature_index"
-  ],
-  "db_region_users": {
-    "US_states_west_500k": [0],
-    "US_counties_west_500k": [0],
-    "Mason": [0],
-    "CentralValley_15": [0]
-  },
-  "var_data_by_tres":{
-    "annual": ["annual"],
-    "seasonal": ["seasonal"],
-    "monthly": ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10", "m11", "m12"]
-  },
-  "mon_len": [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
-  "var_data": [
-    "annual",
-    "seasonal",
-    "m01",
-    "m02",
-    "m03",
-    "m04",
-    "m05",
-    "m06",
-    "m07",
-    "m08",
-    "m09",
-    "m10",
-    "m11",
-    "m12"
-  ],
-  "dataset_by_var": {
-    "et": [
-      "SSEBop"
-    ],
-    "etrf": [
-      "SSEBop"
-    ],
-    "etr": []
-  },
-  "geom_meta_cols": {
-        "Mason": ["OBJECTID", "STATE", "HUC8", "HUC8_NAME", "PIXELCOUNT", "AREA"],
-        "US_states_west_500k": ["STATEFP", "STUSPS", "NAME", "ALAND", "AWATER"],
-        "US_counties_west_500k": ["STATEFP", "COUNTYFP", "NAME", "ALAND", "AWATER"],
-        "CentralValley_15": ["COUNTY", "AcresMast", "CmdtyMast", "SourceMast"],
-        "US_HUC2_west": ["AREASQKM", "STATES", "HUC2", "NAME"],
-        "US_HUC4_west": ["AREASQKM", "STATES", "HUC2", "NAME"],
-        "US_HUC6_west": ["AREASQKM", "STATES", "HUC2", "NAME"],
-        "US_HUC8_west": ["AREASQKM", "STATES", "HUC2", "NAME"],
-        "US_HUC10_west": ["AREASQKM", "STATES", "HUC2", "NAME"]
-  },
-  "geom_name_keys": ["NAME", "HUC8_NAME"]
+  "users": {
+    "0": {
+      "id": 0,
+      "name": "Public User",
+      "email": "N/A",
+      "last_login": "N/A",
+      "joined": "N/A",
+      "ip": "",
+      "notes": "",
+      "active": "True",
+      "role": "guest"
+    }
+  }
 }
