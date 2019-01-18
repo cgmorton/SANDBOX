@@ -14,12 +14,12 @@ from sqlalchemy.orm import session as session_module
 if __name__ == '__main__':
 
     # start_time = time.time()
-    DB_USER = os.environ['DB_USER']
-    DB_PASSWORD = os.environ['DB_PASSWORD']
-    DB_PORT = os.environ['DB_PORT']
-    DB_HOST = os.environ['DB_HOST']
-    DB_NAME = os.environ['DB_NAME']
-
+    DB_USER = config.DRI_DB_USER
+    DB_PASSWORD = config.DRI_DB_PASSWORD
+    DB_PORT = config.DRI_DB_PORT
+    DB_HOST = config.DRI_DB_HOST
+    DB_NAME = config.DRI_DB_NAME
+    schema = config.schema
 
 
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
@@ -47,20 +47,18 @@ if __name__ == '__main__':
     '''
 
     # print(Base.metadata.sorted_tables)
-    models = config.statics['models'].keys()
     user_id = 0
-    regions = config.statics['regions'].keys()
-    for rgn in regions[0:1]:
+    for feat_coll in config.statics['feature_collections'].keys()[0:1]:
         geom_change_by_year = False
-        if rgn in config.statics['regions_changing_by_year']:
+        if feat_coll in config.statics['feature_collections_changing_by_year']:
             geom_change_by_year = True
-        for model in models:
+        for model in config.statics['models'].keys():
             s_year = int(config.statics[model]["valid_year_range"][0])
             e_year = int(config.statics[model]['valid_year_range'][1])
             years = range(s_year, e_year)
             for year_int in years[0:1]:
                 year = str(year_int)
-                DB_Util = db_methods.database_Util(rgn, model, year, user_id, geom_change_by_year)
+                DB_Util = db_methods.database_Util(feat_coll, model, year, user_id, geom_change_by_year)
                 etdata = DB_Util.read_etdata_from_bucket()
                 geojson_data = DB_Util.read_geodata_from_bucket()
                 session = Session()
