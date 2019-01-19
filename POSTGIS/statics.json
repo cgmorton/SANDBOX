@@ -1,30 +1,40 @@
 {
   "ingest_chunk_size": 500,
-  "feature_ollections": {
+  "feature_collections": {
     "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset": {
       "users": [0],
       "metadata": ["OBJECTID", "BASIN"],
-      "feature_collection_id": ""
+      "feature_collection_name": "/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
+      "feature_collection_permission": "public",
+      "url_path_to_shapefile": ""
     },
     "BRC_Combined_subset_2009": {
       "users": [0],
       "metadata": ["OBJECTID"],
-      "feature_collection_id": ""
+      "feature_collection_name": "BRC_Combined_subset_2009",
+      "feature_collection_permission": "public",
+      "url_path_to_shapefile": ""
     },
     "WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr": {
       "users": [0],
       "metadata": [],
-      "feature_collection_id": ""
+      "feature_collection_name": "/projects/nasa-roses/WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
+      "feature_collection_permission": "public",
+      "url_path_to_shapefile": ""
     },
     "usgs_central_valley_mod_base15_ca_poly_170616": {
       "users": [0],
       "metadata": ["BASIN"],
-      "feature_collection_id": ""
+      "feature_collection_name": "/projects/nasa-roses/sgs_central_valley_mod_base15_ca_poly_170616",
+      "feature_collection_permission": "public",
+      "url_path_to_shapefile": ""
     },
     "paso_robles_base15_ca_poly_170616": {
       "users": [0],
       "metadata": ["COUNTY", "SimsID"],
-      "feature_collection_id": ""
+      "feature_collection_name": "/projects/nasa-roses/paso_robles_base15_ca_poly_170616",
+      "feature_collection_permission": "public",
+      "url_path_to_shapefile": ""
     }
   },
   "feature_collections_changing_by_year": [],
@@ -62,7 +72,7 @@
   "models": {
     "ssebop": {
       "model_id": 1,
-      "model_name": "SSEBop",
+      "model_name": "ssebop",
       "variables": ["et", "etnet"],
       "valid_year_range": ["2003", "2011"],
       "ee_collection": "projects/usgs-ssebop/et/conus/monthly/v0",
@@ -116,7 +126,7 @@
   },
   "users": {
     "0": {
-      "id": 0,
+      "user_id": 0,
       "user_name": "Public User",
       "user_email": "N/A",
       "last_login": "N/A",

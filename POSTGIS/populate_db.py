@@ -29,10 +29,9 @@ if __name__ == '__main__':
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
 
-    '''
+
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-    '''
 
     start_time = time.time()
 
@@ -53,8 +52,8 @@ if __name__ == '__main__':
         if feat_coll in config.statics['feature_collections_changing_by_year']:
             geom_change_by_year = True
         for model in config.statics['models'].keys():
-            s_year = int(config.statics[model]["valid_year_range"][0])
-            e_year = int(config.statics[model]['valid_year_range'][1])
+            s_year = int(config.statics['models'][model]["valid_year_range"][0])
+            e_year = int(config.statics['models'][model]['valid_year_range'][1])
             years = range(s_year, e_year)
             for year_int in years[0:1]:
                 year = str(year_int)

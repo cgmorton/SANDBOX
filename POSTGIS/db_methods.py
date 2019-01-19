@@ -17,7 +17,7 @@ from sqlalchemy import DDL
 from sqlalchemy import event
 from shapely.geometry.multipolygon import MultiPolygon
 from geoalchemy2.shape import from_shape, to_shape
-from geoalchemy2.types import Featureetry
+from geoalchemy2.types import Geometry
 import geojson
 
 import config
@@ -29,19 +29,21 @@ Base = declarative_base()
 # schema='openet geodatabase'
 schema = config.schema
 Base.metadata = db.MetaData(schema=schema)
-event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
+
+#event.listen(Base.metadata, 'before_create', DDL('CREATE SCHEMA IF NOT EXISTS ' + schema))
 
 # FIXME: mssing tables: Report, Parameters, commented out below
 class Model(Base):
     __tablename__ = 'model'
     __table_args__ = {'schema': schema}
     model_id = db.Column(db.Integer(), primary_key=True)
-    model_name = db.Column(db.String())
+    model_name = db.Column(db.String(), unique=True, index=True)
     ee_collection_name = db.Column(db.String())
     model_collection = db.Column(db.String())
 
     data = relationship('Data', back_populates='model', cascade='save-update, merge, delete')
-    parameters = relationship('Parameters', back_populates='model', cascade='save-update, merge, delete')
+    model_metadata = relationship('ModelMetadata', back_populates='model', cascade='save-update, merge, delete')
+    # parameters = relationship('Parameters', back_populates='model', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -54,8 +56,11 @@ class ModelMetadata(Base):
     model_metadata_name = db.Column(db.String())
     model_metadata_properties = db.Column(db.String())
 
+    model = relationship('Model', back_populates='model_metadata', cascade='save-update, merge, delete')
+
 
 FeatureUserLink = db.Table('feature_user_link', Base.metadata,
+    # db.Column('feature_collection_id', db.Integer, db.ForeignKey('feature_collection.feature_collection_id', ondelete='cascade', onupdate='cascade')),
     db.Column('user_id', db.Integer, db.ForeignKey('user.user_id', ondelete='cascade', onupdate='cascade')),
     db.Column('feature_id', db.Integer, db.ForeignKey('feature.feature_id', ondelete='cascade', onupdate='cascade'))
 )
@@ -73,8 +78,10 @@ class User(Base):
     active = db.Column(db.String())
     role = db.Column(db.String())
 
+
     features = relationship('Feature', secondary=FeatureUserLink, back_populates='users', cascade='save-update, merge, delete')
-    feature_colections = relationship('FeatureCollections', secondary=FeatureUserLink, back_populates='users', cascade='save-update, merge, delete')
+    data = relationship('Data', back_populates='user', cascade='save-update, merge, delete')
+    feature_colections = relationship('FeatureCollection', back_populates='users', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -83,25 +90,25 @@ class FeatureCollection(Base):
     __tablename__ = 'feature_collection'
     __table_args__ = {'schema': schema}
     feature_collection_id = db.Column(db.Integer(), primary_key=True)
-    feature_collection_name =  db.Column(db.String())
+    feature_collection_name =  db.Column(db.String(), unique=True, nullable=False)
     user_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.user_id'), nullable=False)
     feature_collection_permission = db.Column(db.String())
     url_path_to_shapefile = db.Column(db.String())
 
-    users = relationship('User', secondary=FeatureUserLink, back_populates='feature_colection',cascade='save-update, merge, delete')
+    users = relationship('User', back_populates='feature_colections',cascade='save-update, merge, delete')
 
 
 class Feature(Base):
     __tablename__ = 'feature'
     __table_args__ = {'schema': schema}
     feature_id = db.Column(db.Integer(), primary_key=True)
-    feature_collection_id = db.Column(db.String(), db.ForeignKey(schema + '.' + 'feature_collection.feature_collection_id'), nullable=False)
+    feature_collection_name = db.Column(db.String(), db.ForeignKey(schema + '.' + 'feature_collection.feature_collection_name'), nullable=False)
     feature_id_from_user = db.Column(db.String())
     type = db.Column(db.String())
     year = db.Column(db.Integer())
-    geometry = db.Column(Featureetry(geometry_type='MULTIPOLYGON'))
+    geometry = db.Column(Geometry(geometry_type='MULTIPOLYGON'))
 
-    metadata = relationship('FeatureMetadata', back_populates='feature', cascade='save-update, merge, delete')
+    feature_metadata = relationship('FeatureMetadata', back_populates='feature', cascade='save-update, merge, delete')
     data = relationship('Data', back_populates='feature', cascade='save-update, merge, delete')
     users = relationship('User', secondary=FeatureUserLink, back_populates='features', cascade='save-update, merge, delete')
 
@@ -116,7 +123,7 @@ class FeatureMetadata(Base):
     feature_metadata_name = db.Column(db.String())
     feature_metadata_properties = db.Column(db.String())
 
-    feature = relationship('Feature', back_populates='metadata', cascade='save-update, merge, delete')
+    feature = relationship('Feature', back_populates='feature_metadata', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -126,11 +133,11 @@ class Variable(Base):
     __tablename__ = 'variable'
     __table_args__ = {'schema': schema}
     variable_id = db.Column(db.Integer(), primary_key=True)
-    variable_name = db.Column(db.String(), index=True)
+    variable_name = db.Column(db.String(), unique=True, index=True)
     units = db.Column(db.String())
 
     data = relationship('Data', back_populates='variable', cascade='save-update, merge, delete')
-    parameters = relationship('Parameters', back_populates='variable', cascade='save-update, merge, delete')
+    # parameters = relationship('Parameters', back_populates='variable', cascade='save-update, merge, delete')
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -143,7 +150,7 @@ class Data(Base):
     feature_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'feature.feature_id'), nullable=False)
     user_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.user_id'), nullable=False)
     timeseries_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'timeseries.timeseries_id'), nullable=False)
-    report_id  = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'report.report_id'))
+    # report_id  = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'report.report_id'))
     model_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.model_name'), nullable=False)
     variable_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'variable.variable_name'), nullable=False)
     temporal_resolution = db.Column(db.String())
@@ -153,7 +160,7 @@ class Data(Base):
     feature = relationship('Feature', back_populates='data', cascade='save-update, merge, delete')
     user = relationship('User', back_populates='data', cascade='save-update, merge, delete')
     timeseries = relationship('Timeseries', back_populates='data', cascade='save-update, merge, delete')
-    report = relationship('Report', back_populates='data', cascade='save-update, merge, delete')
+    # report = relationship('Report', back_populates='data', cascade='save-update, merge, delete')
     model = relationship('Model', back_populates='data', cascade='save-update, merge, delete')
     variable = relationship('Variable', back_populates='data', cascade='save-update, merge, delete')
 
@@ -344,9 +351,12 @@ class database_Util(object):
                 raise
             num_added = end
 
-    def check_if_data_in_db(self, geom_id, session):
+    def check_if_data_in_db(self, feature_id, session):
         # Check if this entry is already in db
         in_db =  False
+        if feature_id is None:
+            return in_db
+
         QU = query_Util({
             'feature_collection': self.feature_collection,
             'model': self.model,
@@ -354,23 +364,24 @@ class database_Util(object):
             'temporal_resolution': 'monthly',
             'variable': 'et'
         }, session)
-        in_db = QU.check_if_data_in_db(geom_id)
+        in_db = QU.check_if_data_in_db(feature_id)
         return in_db
 
-    def check_if_geom_in_db(self, feature_collection, feature_index, year, session):
-        geom_query = session.query(Feature).filter(
-            Feature.feature_id_from_user == feature_index,
+    def check_if_feature_in_db(self, feature_collection, feature_id_from_user, year, session):
+        coll_name = config.statics['feature_collections'][feature_collection]['feature_collection_name']
+        feature_query = session.query(Feature).filter(
+            Feature.feature_id_from_user == str(feature_id_from_user),
             Feature.year == year,
-            Feature.feature_collection_id == config.statics['feature_collections'][feature_collection]['feature_collection_id']
+            Feature.feature_collection_name == coll_name
         )
-        if len(geom_query.all()) == 0:
-            return None, None
-        if len(geom_query.all()) > 1:
-            logging.error('Multiple geometries for ' + feature_collection + '/' + str(feature_index) + '/' + str(year))
-            return -9999, None
-        geom = geom_query.first()
-        geom_id = geom.id
-        return geom_id
+        if len(feature_query.all()) == 0:
+            return None
+        if len(feature_query.all()) > 1:
+            logging.error('Multiple geometries for ' + feature_collection + '/' + str(feature_id_from_user) + '/' + str(year))
+            return None
+        feature = feature_query.first()
+        feature_id = feature.feature_id
+        return feature_id
 
     def set_postgis_geometry(self, shapely_geom):
         postgis_geom = None
@@ -389,8 +400,9 @@ class database_Util(object):
         # Note: primary key is AUTOSET in db
                 feature_id_from user is set to feature_index in featCollection if user didn't give it
         '''
+        coll_name = config.statics['feature_collections'][self.feature_collection]['feature_collection_name']
         feature = Feature(
-            feature_collection_id = config.statics['feature_collections'][self.feature_collection]['feature_collection_id'],
+            feature_collection_name = coll_name,
             feature_id_from_user = feature_id_from_user,
             type = geom_type,
             year = int(year),
@@ -435,7 +447,7 @@ class database_Util(object):
         :param user_id:
         :return:
         '''
-        init_dict = config.statics['users'][user_id]
+        init_dict = copy.deepcopy(config.statics['users'][user_id])
         # Update date parameters
         init_dict['last_login'] = dt.datetime.today()
         init_dict['joined'] = dt.datetime.today()
@@ -449,7 +461,7 @@ class database_Util(object):
         # User
         entities = []
         for user_id in config.statics['users'].keys():
-            init_dict = self.set_user_dict(user_id)
+            init_dict = copy.deepcopy(self.set_user_dict(user_id))
             entities.append(User(**init_dict))
         self.add_entities_to_db(session, entities)
         print('Added User Table')
@@ -458,15 +470,14 @@ class database_Util(object):
         entities = []
         m_entities = []
         for model_name in config.statics['models'].keys():
-            init_dict = config.statics['models'][model_name]
-            # This goes into the parameter table
-            del init_dict['parameters']
+            init_dict = copy.deepcopy(config.statics['models'][model_name])
             # This goes into the model_metdata table
             del init_dict['variables']
             del init_dict['metadata']
             entities.append(Model(**init_dict))
 
-            init_dict = config.statics['models'][model_name]['metadata']
+            init_dict = copy.deepcopy(config.statics['models'][model_name]['metadata'])
+            init_dict['model_name'] = model_name
             m_entities.append(ModelMetadata(**init_dict))
 
 
@@ -475,21 +486,34 @@ class database_Util(object):
         del m_entities
         print('Added Model and ModelMetadata Tables')
 
-
         # Variable
         entities = []
         for var_name in config.statics['variables'].keys():
-            init_dict = config.statics['variables'][var_name]
+            init_dict = copy.deepcopy(config.statics['variables'][var_name])
             entities.append(Variable(**init_dict))
         self.add_entities_to_db(session, entities)
-        print('Added Variable rows')
+        print('Added Variable Table')
+
+        # FeatureCollection
+        entities = []
+        for coll_name in config.statics['feature_collections'].keys():
+            coll_dict = copy.deepcopy(config.statics['feature_collections'][coll_name])
+            del coll_dict['metadata']
+            users = coll_dict['users']
+            del coll_dict['users']
+            for user in users:
+                init_dict = copy.deepcopy(coll_dict)
+                init_dict['user_id'] = user
+                entities.append(FeatureCollection(**init_dict))
+        self.add_entities_to_db(session, entities)
+        print('Added FeatureCollection table')
 
         '''
         # Parameters (depends on model AND variable)
         entities = []
         for model_name in config.statics['parameters'].keys():
             for var_name in config.statics['parameters'][model_name].keys():
-                init_dict = config.statics['parameters'][model_name][var_name]
+                init_dict = copy.deepcopy(config.statics['parameters'][model_name][var_name])
                 entities.append(Parameters(**init_dict))
         self.add_entities_to_db(session, entities)
         print('Added Parameter rows')
@@ -514,7 +538,7 @@ class database_Util(object):
             geojson_data = self.read_geodata_from_bucket()
 
         # Set the user ids associated with this feature_collection
-        user_ids_for_geom = config.statics['feature_collections'][self.feature_collection]['users']
+        user_ids_for_featColl = config.statics['feature_collections'][self.feature_collection]['users']
 
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
@@ -554,9 +578,9 @@ class database_Util(object):
             csv_metadata = open('metadata.csv', 'wb+')
             csv_data = open('data.csv', 'wb+')
             csv_timeseries = open('timeseries.csv', 'wb+')
-            csv_mwriter = csv.writer(csv_metadata, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            csv_dwriter = csv.writer(csv_data, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            csv_dwriter = csv.writer(csv_timeseries, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            csv_meta_writer = csv.writer(csv_metadata, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            csv_data_writer = csv.writer(csv_data, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            csv_ts_writer = csv.writer(csv_timeseries, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 
             idx_start = (chunk - 1) * chunk_size
             idx_end = chunk * chunk_size
@@ -566,7 +590,7 @@ class database_Util(object):
                 feat_idx = f_idx +1
                 print('Adding Feature '  + str(f_idx + 1))
                 # Feature table
-                # check if the geometry is already in the database
+                # check if the feature is already in the database
                 if self.feature_collection_changing_by_year:
                     year = self.year
                 else:
@@ -574,17 +598,19 @@ class database_Util(object):
                 g_data = geojson_data['features'][f_idx]
                 # Set the feature_id_from_user
                 if 'feature_id_from_user' in g_data['properties'].keys():
-                    feature_id_from_user = g_data['properties']["feature_id_from_user"]
+                    feature_id_from_user = str(g_data['properties']["feature_id_from_user"])
                 else:
                     feature_id_from_user = str(feat_idx)
 
                 # Check if feature is in db
-                feature_id, feature_area = self.check_if_geom_in_db(self.feature_collection, feat_idx, year, session)
+                feature_id = self.check_if_feature_in_db(self.feature_collection, str(feat_idx), year, session)
+                print('LOOOOK')
+                print(feature_id)
                 # Check if  data is in db
                 data_in_db = self.check_if_data_in_db(feature_id, session)
 
                 if feature_id and data_in_db:
-                    print('Data for feature_id/year ' + str(geom_id) + '/' + str(self.year) + ' found in db. Skipping...')
+                    print('Data for feature_id/year ' + str(feature_id) + '/' + str(self.year) + ' found in db. Skipping...')
                     continue
 
                 if not feature_id:
@@ -592,21 +618,20 @@ class database_Util(object):
                     # Note: we convert polygons to multi polygon
                     # Convert to shapely shape
                     shapely_geom = asShape(g_data['geometry'])
-                    feature__area = round(shapely_geom.area, 4)
                     postgis_geom = self.set_postgis_geometry(shapely_geom)
                     if postgis_geom is None:
                         raise Exception('Not a valid geometry, must be polygon or multi polygon!')
-                    # Add the geometry table entry for this feature and obtain the geometry id
+                    # Add the feature table entry for this feature and obtain the feature_id
                     feature = self.set_feature_entity(feature_id_from_user, shapely_geom.geom_type, postgis_geom, year)
-                    # Submit the geom table to obtain the primary key geom_id
-                    self.add_entity_to_db(self, session, feature)
-                    # Get the geometry primary key from db
+                    # Submit the feature table to obtain the primary key feature_id
+                    self.add_entity_to_db(session, feature)
+                    # Get the feature primary key from db
                     feature_id = feature.feature_id
                     logging.info('Added Feature Table')
-                    # Add the many-to-many relationship between user and geom
-                    # (user_id, geom_id pairs)
+                    # Add the many-to-many relationship between user and feature
+                    # (user_id, feature_id pairs)
                     uid_feat_pairs = []
-                    for user_id in user_ids_for_geom:
+                    for user_id in user_ids_for_featColl:
                         uid_feat_pairs.append((user_id, feature_id))
                     session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
                     print('Added FeatureUserLink Table')
@@ -615,10 +640,8 @@ class database_Util(object):
                     print('Feature found in db')
 
 
-
-
                 f_data = etdata['features'][f_idx]
-                # Set the geometry metadata and data tables for bulk ingest
+                # Set the feature metadata and data tables for bulk ingest
                 for key in config.statics['feature_collections'][self.feature_collection]['metadata']:
                     try:
                         value = str(g_data['properties'][key])
@@ -629,12 +652,12 @@ class database_Util(object):
                             value = 'Not Found'
                     # Remove commas, causes issues when copy_from
                     value = ' '.join(value.replace(', ', ',').split(','))
-                    csv_mwriter.writerow([feature_id, key, value])
+                    csv_meta_writer.writerow([feature_id, key, value])
 
 
                 # FIXME: these should not be hardcoded here
                 permission = 'public'
-                last_timeseries_update = dt.datatime.today()
+                last_timeseries_update = dt.datetime.today()
                 report_id = 0
                 timeseries_id = -1
 
@@ -645,39 +668,51 @@ class database_Util(object):
                             timeseries_id+=1
                             # Set date
                             DU = date_Util()
-                            start_date, end_date = DU.get_dbtable_start_end_dates(self.year, t_res, data_var)
+                            start_date_dt, end_date_dt = DU.get_dbtable_start_end_dates(self.year, t_res, data_var)
                             # Set data value
                             try:
                                 data_value = float(f_data['properties'][var + '_' + data_var])
                             except:
                                 data_value = -9999
+
                             row = [feature_id, user_id, timeseries_id, report_id, self.model, var, t_res, permission, last_timeseries_update]
-                            csv_dwriter.writerow(row)
+                            csv_data_writer.writerow(row)
+                            row = [timeseries_id, start_date_dt, end_date_dt, data_value]
+                            csv_ts_writer.writerow(row)
 
 
             csv_metadata.close()
             csv_data.close()
+            csv_timeseries.close()
 
-            # Commit the geom metadata and data for all features
+            # Commit the feature metadata and data for all features
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
-                    cols = ('geom_id', 'model_name', 'variable_name',
-                            'temporal_resolution', 'data_date', 'data_value')
+                    cols = ('feature_id', 'user_id', 'timeseries_id', 'report_id',
+                            'model_name', 'variable_name', 'temporal_resolution',
+                            'permission', 'last_timeseries_update')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
                     print('Added Data tables for features')
 
             with open('metadata.csv', 'r') as f:
                 if os.stat("metadata.csv").st_size != 0:
-                    cols = ('geom_id', 'name', 'properties')
-                    cursor.copy_from(f, 'geom_metadata', sep=',', columns=cols)
+                    cols = ('feature_id', 'feature_metadata_name', 'feature_metadata_properties')
+                    cursor.copy_from(f, 'feature_metadata', sep=',', columns=cols)
                     print('Added FeatureMetadata table rows for features')
+
+            with open('timeseries.csv', 'r') as f:
+                if os.stat("timeseries.csv").st_size != 0:
+                    cols = ('timseries_id', 'start_date', 'end_date', 'data_value')
+                    cursor.copy_from(f, 'timeseries', sep=',', columns=cols)
+                    print('Added timseries table rows for features')
+
             try:
                 session.commit()
             except:
                 session.rollback()
                 raise
 
-
+            # Delete the csv files
             os.remove('metadata.csv')
             os.remove('data.csv')
             os.remove('timeseries.csv')
@@ -781,7 +816,7 @@ class query_Util(object):
 
     def check_if_data_in_db(self, feature_id):
         data_query = self.session.query(Data).filter(
-            Data.feaure_id == int(feature_id),
+            Data.feature_id == int(feature_id),
             Data.year == int(self.tv_vars['year']),
             Data.model_name == self.tv_vars['model'],
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
@@ -806,13 +841,13 @@ class query_Util(object):
         end_dates = dates_list[1]
 
         # Set the geom_names from feature_collection and feature index
-        feat_coll_id = config.statics['db_id_feature_collection'][feat_coll]
+        feat_coll_name = config.statics['regions'][self.region]['feature_collection_name']
         # FIXME: user joins!!!
         # Query geometry table
         if len(feature_index_list) == 1 and feature_index_list[0] == 'all':
             feature_query = self.session.query(Feature).filter(
                 Feature.user_id == 0,
-                Feature.feature_collection_id == feat_coll_id
+                Feature.feature_collection_name == feat_coll_name
             )
         else:
             feature_query = self.session.query(Feature).filter(Feature.users.any(id=0))
@@ -832,7 +867,7 @@ class query_Util(object):
             Timeseries.start_date.in_(start_dates),
             Timeseries.start_date.in_(end_dates)
         )
- 
+
         # Complile results as list of dicts
         json_data = []
         for q in data_query.all():
