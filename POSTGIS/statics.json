@@ -11,7 +11,7 @@
     "BRC_Combined_subset_2009": {
       "users": [0],
       "metadata": ["OBJECTID"],
-      "feature_collection_name": "BRC_Combined_subset_2009",
+      "feature_collection_name": "/projects/nasa-roses/BRC_Combined_subset_2009",
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
     },
@@ -83,22 +83,12 @@
   "variables": {
     "et": {
       "variabel_id": 1,
-      "variable_name": "Actual ET",
+      "variable_name": "et",
       "units": "mm"
     },
     "etnet": {
       "variabel_id": 2,
-      "variable_name": "Net ET",
-      "units": "mm"
-    },
-    "ndvi": {
-      "variabel_id": 3,
-      "variable_name": "Vegetation Index",
-      "units": ""
-    },
-    "ppt": {
-      "variabel_id": 4,
-      "variable_name": "Precipitation Index",
+      "variable_name": "etnet",
       "units": "mm"
     }
   },
@@ -136,5 +126,6 @@
       "active": "True",
       "role": "guest"
     }
-  }
+  },
+  "mon_len": [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 }

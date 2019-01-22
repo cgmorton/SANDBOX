@@ -52,7 +52,7 @@ class ModelMetadata(Base):
     __tablename__ = 'model_metadata'
     __table_args__ = {'schema': schema}
     model_metadata_id = db.Column(db.Integer(), primary_key=True)
-    model_name = db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.model_name'), nullable=False)
+    model_name = db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.model_name'), index=True, nullable=False)
     model_metadata_name = db.Column(db.String())
     model_metadata_properties = db.Column(db.String())
 
@@ -151,8 +151,8 @@ class Data(Base):
     user_id =  db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'user.user_id'), nullable=False)
     timeseries_id = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'timeseries.timeseries_id'), nullable=False)
     # report_id  = db.Column(db.Integer(), db.ForeignKey(schema + '.' + 'report.report_id'))
-    model_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.model_name'), nullable=False)
-    variable_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'variable.variable_name'), nullable=False)
+    model_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'model.model_name'), index=True, nullable=False)
+    variable_name =  db.Column(db.String(), db.ForeignKey(schema + '.' + 'variable.variable_name'), index=True, nullable=False)
     temporal_resolution = db.Column(db.String())
     permission = db.Column(db.String())
     last_timeseries_update = db.Column(db.DateTime())
@@ -182,8 +182,8 @@ class Parameters(Base):
     __tablename__ = 'parameter'
     __table_args__ = {'schema': schema}
     parameter_id = db.Column(db.Integer(), primary_key=True)
-    variable_name = db.Column(db.String(), db.ForeignKey(schema + '.'  + 'variable.variable_name'), nullable=False)
-    model_name = db.Column(db.String(), db.ForeignKey(schema + '.'  + 'model.model_name'), nullable=False)
+    variable_name = db.Column(db.String(), db.ForeignKey(schema + '.'  + 'variable.variable_name'), index=True, nullable=False)
+    model_name = db.Column(db.String(), db.ForeignKey(schema + '.'  + 'model.model_name'), index=True, nullable=False)
     parameter_name =  db.Column(db.String())
     parameter_properties = db.Column(db.String())
 
@@ -216,7 +216,7 @@ class database_Util(object):
         :year year of geojson model, might be ALL if not USFields
             USField geojsons change every year
     '''
-    def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year):
+    def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
         self.feature_collection = feature_collection
         self.year = int(year)
         self.model = model
@@ -224,6 +224,7 @@ class database_Util(object):
         self.geo_bucket_url = config.GEO_BUCKET_URL
         self.data_bucket_url = config.DATA_BUCKET_URL
         self.feature_collection_changing_by_year = feature_collection_changing_by_year
+        self.engine = engine
 
         # Used to read geometry data from buckets
         if self.feature_collection_changing_by_year:
@@ -351,7 +352,18 @@ class database_Util(object):
                 raise
             num_added = end
 
-    def check_if_data_in_db(self, feature_id, session):
+    def database_is_empty(self):
+        table_names = db.inspect(self.engine).get_table_names()
+        is_empty = table_names == []
+        print('Db is empty: {}'.format(is_empty))
+        return is_empty
+
+    def table_exists(self, table_name):
+        ret = self.engine.dialect.has_table(self.engine, table_name)
+        print('Table "{}" exists: {}'.format(table_name, ret))
+        return ret
+
+    def check_if_data_in_db(self, feature_id, year, session):
         # Check if this entry is already in db
         in_db =  False
         if feature_id is None:
@@ -360,12 +372,13 @@ class database_Util(object):
         QU = query_Util({
             'feature_collection': self.feature_collection,
             'model': self.model,
-            'year': self.year,
+            'year': year,
             'temporal_resolution': 'monthly',
             'variable': 'et'
         }, session)
         in_db = QU.check_if_data_in_db(feature_id)
         return in_db
+
 
     def check_if_feature_in_db(self, feature_collection, feature_id_from_user, year, session):
         coll_name = config.statics['feature_collections'][feature_collection]['feature_collection_name']
@@ -543,13 +556,18 @@ class database_Util(object):
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
         db_empty = False
+
         q = session.query(Data).first()
         if q is None:
             db_empty = True
+
+        # db_empty = self.database_is_empty()
+
         if db_empty:
             # Set up feature_collection, model, parameter and variable tables
             print('Database empty, setting up basic data tables')
             self.set_base_database_tables(session)
+
 
         # Loop over features in bucket file, do in chunks
         # Oherwise we get a kill9 error
@@ -570,6 +588,11 @@ class database_Util(object):
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
         cursor.execute("SET search_path TO myschema," + schema + ', public')
 
+        # FIXME: these should not be hardcoded here
+        permission = 'public'
+        last_timeseries_update = dt.datetime.today()
+        report_id = 0
+        timeseries_id = 0
         while chunk <= num_chunks:
             '''
             data_entities = []
@@ -586,6 +609,7 @@ class database_Util(object):
             idx_end = chunk * chunk_size
             if idx_end > len(etdata['features']):
                 idx_end = len(etdata['features'])
+
             for f_idx in range(idx_start, idx_end):
                 feat_idx = f_idx +1
                 print('Adding Feature '  + str(f_idx + 1))
@@ -604,10 +628,8 @@ class database_Util(object):
 
                 # Check if feature is in db
                 feature_id = self.check_if_feature_in_db(self.feature_collection, str(feat_idx), year, session)
-                print('LOOOOK')
-                print(feature_id)
                 # Check if  data is in db
-                data_in_db = self.check_if_data_in_db(feature_id, session)
+                data_in_db = self.check_if_data_in_db(feature_id, self.year, session)
 
                 if feature_id and data_in_db:
                     print('Data for feature_id/year ' + str(feature_id) + '/' + str(self.year) + ' found in db. Skipping...')
@@ -633,12 +655,9 @@ class database_Util(object):
                     uid_feat_pairs = []
                     for user_id in user_ids_for_featColl:
                         uid_feat_pairs.append((user_id, feature_id))
-                    session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
-                    print('Added FeatureUserLink Table')
                 else:
                     logging.info('Feature found in db')
                     print('Feature found in db')
-
 
                 f_data = etdata['features'][f_idx]
                 # Set the feature metadata and data tables for bulk ingest
@@ -654,17 +673,10 @@ class database_Util(object):
                     value = ' '.join(value.replace(', ', ',').split(','))
                     csv_meta_writer.writerow([feature_id, key, value])
 
-
-                # FIXME: these should not be hardcoded here
-                permission = 'public'
-                last_timeseries_update = dt.datetime.today()
-                report_id = 0
-                timeseries_id = -1
-
                 # Variable loop
                 for var in config.statics['models'][self.model]['variables']:
                     for t_res in config.statics['temporal_resolution'].keys():
-                        for data_var in config.statics['temporal_resoution'][t_res]['data_vars']:
+                        for data_var in config.statics['temporal_resolution'][t_res]['data_vars']:
                             timeseries_id+=1
                             # Set date
                             DU = date_Util()
@@ -675,20 +687,31 @@ class database_Util(object):
                             except:
                                 data_value = -9999
 
-                            row = [feature_id, user_id, timeseries_id, report_id, self.model, var, t_res, permission, last_timeseries_update]
-                            csv_data_writer.writerow(row)
                             row = [timeseries_id, start_date_dt, end_date_dt, data_value]
                             csv_ts_writer.writerow(row)
+                            # row = [feature_id, user_id, timeseries_id, report_id, self.model, var, t_res, permission, last_timeseries_update]
+                            row = [feature_id, user_id, timeseries_id, self.model, var, t_res, permission, last_timeseries_update]
+                            csv_data_writer.writerow(row)
 
+
+            session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
+            print('Added FeatureUserLink Table')
 
             csv_metadata.close()
-            csv_data.close()
             csv_timeseries.close()
+            csv_data.close()
+
 
             # Commit the feature metadata and data for all features
+            with open('timeseries.csv', 'r') as f:
+                if os.stat("timeseries.csv").st_size != 0:
+                    cols = ('timeseries_id', 'start_date', 'end_date', 'data_value')
+                    cursor.copy_from(f, 'timeseries', sep=',', columns=cols)
+                    print('Added timeseries table rows for features')
+
             with open('data.csv', 'r') as f:
                 if os.stat("data.csv").st_size != 0:
-                    cols = ('feature_id', 'user_id', 'timeseries_id', 'report_id',
+                    cols = ('feature_id', 'user_id', 'timeseries_id',
                             'model_name', 'variable_name', 'temporal_resolution',
                             'permission', 'last_timeseries_update')
                     cursor.copy_from(f, 'data', sep=',', columns=cols)
@@ -700,11 +723,7 @@ class database_Util(object):
                     cursor.copy_from(f, 'feature_metadata', sep=',', columns=cols)
                     print('Added FeatureMetadata table rows for features')
 
-            with open('timeseries.csv', 'r') as f:
-                if os.stat("timeseries.csv").st_size != 0:
-                    cols = ('timseries_id', 'start_date', 'end_date', 'data_value')
-                    cursor.copy_from(f, 'timeseries', sep=',', columns=cols)
-                    print('Added timseries table rows for features')
+
 
             try:
                 session.commit()
@@ -817,7 +836,6 @@ class query_Util(object):
     def check_if_data_in_db(self, feature_id):
         data_query = self.session.query(Data).filter(
             Data.feature_id == int(feature_id),
-            Data.year == int(self.tv_vars['year']),
             Data.model_name == self.tv_vars['model'],
             Data.temporal_resolution == self.tv_vars['temporal_resolution'],
             Data.variable_name == self.tv_vars['variable']

@@ -33,6 +33,7 @@ if __name__ == '__main__':
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
 
+
     start_time = time.time()
 
     # Set up the db session
@@ -57,7 +58,7 @@ if __name__ == '__main__':
             years = range(s_year, e_year)
             for year_int in years[0:1]:
                 year = str(year_int)
-                DB_Util = db_methods.database_Util(feat_coll, model, year, user_id, geom_change_by_year)
+                DB_Util = db_methods.database_Util(feat_coll, model, year, user_id, geom_change_by_year, engine)
                 etdata = DB_Util.read_etdata_from_bucket()
                 geojson_data = DB_Util.read_geodata_from_bucket()
                 session = Session()
