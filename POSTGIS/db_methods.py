@@ -18,8 +18,11 @@ from sqlalchemy import event
 from shapely.geometry.multipolygon import MultiPolygon
 from geoalchemy2.shape import from_shape, to_shape
 from geoalchemy2.types import Geometry
-import geojson
 
+from sqlalchemy.sql import select, and_, or_, not_
+
+import geojson
+import numpy as np
 import config
 
 #######################################
@@ -809,9 +812,53 @@ class date_Util(object):
         end_date = dt.datetime(yr, m, d)
         return start_date, end_date
 
+class new_query_Util(object):
+    '''
+    Class to support API queries
+    '''
+
+    def __init__(self, model, variable, user_id, temporal_resolution, engine):
+        self.model = model
+        self.variable = variable
+        self.user_id = user_id
+        self.temporal_resolution = temporal_resolution
+        self.engine = engine
+        self.conn = engine.connect()
+        self.json_data =  {
+            "properties": {
+                "user_id": user_id,
+                "model": self.model,
+                "variable":self.variable,
+                "temporal_resolution":self.temporal_resolution
+
+            }
+        }
+
+    def get_data_for_feature_id(self, feature_id, temporal_summary=None, year=None, output='json'):
+        s = select([Data.timeseries_id, Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]).\
+            where(
+                and_(
+                    Data.feature_id == int(feature_id),
+                    Data.user_id == self.user_id,
+                    Data.model_name == self.model,
+                    Data.temporal_resolution == self.temporal_resolution,
+                    Data.variable_name == self.variable,
+                    Timeseries.timeseries_id == Data.timeseries_id
+                )
+            )
+
+
+        query_data = self.conn.execute(s)
+        j_data = copy.deepcopy(self.json_data)
+        j_data['properties']['data_format'], j_data['data'] = format_feature_result(query_data, temporal_summary)
+        return j_data
+
+
 class query_Util(object):
     '''
     Class to support API queries
+    At a minimum tv_vars need to include
+    model
     '''
     def __init__(self, tv_vars, session):
         self.tv_vars = tv_vars
@@ -894,3 +941,44 @@ class query_Util(object):
             json_data[-1]['data_date'] = json_data[-1]['data_date'].strftime('%Y-%m-%d')
         json_data = json.dumps(json_data, ensure_ascii=False).encode('utf8')
         return json_data
+
+
+# Utility functions:
+def compute_statistic(data_vals, statistic, fill_value=-9999):
+    np_data = np.ma.masked_array(data_vals, data_vals == fill_value)
+
+    if statistic is None:
+        return data_vals
+    elif statistic == 'sum':
+        return np.sum(np_data)
+    elif statistic == 'mean':
+        return np.mean(np_data)
+    elif statistic == 'max':
+        return np.max(np_data)
+    elif statistic == 'min':
+        return np.min(np_data)
+    elif statistic == 'median':
+        return np.median
+
+def format_feature_result(query_data, temporal_summary):
+    '''
+
+    :param query_data: List of tuples (timeseries_id, date_start_dt, date_end_dt, data_value)
+    :param temporal_summary:
+    :return: json object
+    '''
+    if not query_data:
+        return json.dumps({}, ensure_ascii=False).encode('utf8')
+
+    data = []
+    if temporal_summary is not None:
+        format = ['start_date', 'end_date', temporal_summary]
+        data_vals = zip(query_data[-1])
+        data_val = compute_statistic(data_vals, temporal_summary, fill_value=-9999)
+        start_date = query_data[0][1].strftime('%Y-%m-%d')
+        end_date = query_data[0][-2].strftime('%Y-%m-%d')
+        data.append([start_date, end_date, data_val])
+    else:
+        format = ['start_date', 'end_date', 'data_value']
+        data = [[qd[1].strftime('%Y-%m-%d'), qd[-2].strftime('%Y-%m-%d'), qd[-1]] for qd in query_data]
+    return format, data

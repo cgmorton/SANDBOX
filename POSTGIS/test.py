@@ -1,19 +1,24 @@
 import os, subprocess
 import time
 
-'''
-import sqlalchemy as db
+
+
 from sqlalchemy import create_engine
+
+'''
 from sqlalchemy.orm import session as session_module
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import event
 from sqlalchemy import DDL
 '''
 
+
 from osgeo import ogr
 from osgeo import gdal
 gdal.SetConfigOption('CPL_DEBUG','ON')
 
+import config
+import db_methods
 
 def testLoad(serverDS, table, sourceFile):
     ogr.RegisterAll()
@@ -43,33 +48,39 @@ def testLoad(serverDS, table, sourceFile):
 if __name__ == '__main__':
 
     start_time = time.time()
-
+    '''
     shapefile = '/Users/bdaudert/SANDBOX/OpenET/test_files/base15_ca_poly_170616_DATA_ALL.shp'
     schema = 'shape_test'
     table = schema + '.data_all'
-
-    DB_USER = os.environ['DB_USER']
-    DB_PASSWORD = os.environ['DB_PASSWORD']
-    DB_PORT = os.environ['DB_PORT']
-    DB_HOST = os.environ['DB_HOST']
-    DB_NAME = os.environ['DB_NAME']
-
     connectionString = "PG:dbname='%s' host='%s' port='%s' user='%s' password = '%s'" % (DB_NAME,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD)
-
     ogrds = ogr.Open(connectionString)
     name = testLoad(ogrds, table, shapefile)
     print(name)
     #    ogrds.DeleteLayer(table)
-
     '''
-    Base = declarative_base()
-    Base.metadata = db.MetaData(schema=schema)
-    event.listen(Base.metadata, 'before_create', DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
+
+    DB_USER = config.DRI_DB_USER
+    DB_PASSWORD = config.DRI_DB_PASSWORD
+    DB_PORT = config.DRI_DB_PORT
+    DB_HOST = config.DRI_DB_HOST
+    DB_NAME = config.DRI_DB_NAME
+    schema = config.schema
+
+    model = 'ssebop'
+    variable = 'et'
+    user_id = 0
+    temporal_resolution = 'monthly'
+
 
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
-    db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
+    db_string += "@" + DB_HOST + ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
+    # db_methods.Base.metadata.bind = engine
 
+    QU = db_methods.new_query_Util(model, variable, user_id, temporal_resolution, engine)
+    data = QU.get_data_for_feature_id(1, temporal_summary=None, year=None, output='json')
+    print(data)
+    '''
     # Set up the db session
     Session = session_module.sessionmaker()
     Session.configure(bind=engine)

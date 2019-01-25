@@ -28,8 +28,6 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
-
-
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
 
@@ -37,7 +35,6 @@ if __name__ == '__main__':
     start_time = time.time()
 
     # Set up the db session
-    schema = db_methods.schema
     Session = session_module.sessionmaker()
     # Session = scoped_session(sessionmaker())
     Session.configure(bind=engine)
