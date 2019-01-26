@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
     QU = db_methods.new_query_Util(model, variable, user_id, temporal_resolution, engine)
     # 1 API call
-    data = QU.get_data_for_feature_id(1, '2003-01-01', '2003-12-31', temporal_summary=None, output='json')
+    data = QU.get_data_for_feature_id(1, '2003-01-01', '2003-12-31', temporal_summary='median', output='json')
     print(data)
     '''
     # Set up the db session

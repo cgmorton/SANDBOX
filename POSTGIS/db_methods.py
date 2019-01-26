@@ -835,12 +835,24 @@ class new_query_Util(object):
         }
 
     def get_data_for_feature_id(self, feature_id, start_date, end_date, temporal_summary=None, output='json'):
+        '''
+        Request time series for a single field that is not associated with a user
+        using the feature_id (unique primary key) directly
+        API eaxample 1: average runtime: 0.75 seconds
+        :param feature_id: Feature.feature_id primary key of feature in database
+        :param start_date: date string or dateime object
+        :param end_date: date string or dateime object
+        :param temporal_summary: max, min, median, mean or sum
+        :param output:
+        :return:
+        '''
         if isinstance(start_date, basestring):
             start_date_dt = dt.datetime.strptime(start_date, '%Y-%m-%d')
-            end_date_dt = dt.datetime.strptime(start_date, '%Y-%m-%d')
+            end_date_dt = dt.datetime.strptime(end_date, '%Y-%m-%d')
         elif isinstance(start_date, dt.date):
             start_date_dt = start_date
             end_date_dt = end_date
+
         s = select([Data.timeseries_id, Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]).\
             where(
                 and_(
@@ -850,12 +862,10 @@ class new_query_Util(object):
                     Data.temporal_resolution == self.temporal_resolution,
                     Data.variable_name == self.variable,
                     Timeseries.timeseries_id == Data.timeseries_id,
-                    Timeseries.start_date == start_date_dt,
-                    Timeseries.end_date == end_date_dt
+                    Timeseries.start_date >= start_date_dt,
+                    Timeseries.end_date <= end_date_dt
                 )
             )
-
-
         query_data = self.conn.execute(s)
         j_data = copy.deepcopy(self.json_data)
         j_data['properties']['data_format'], j_data['data'] = format_feature_result(query_data, temporal_summary)
@@ -966,11 +976,10 @@ def compute_statistic(data_vals, statistic, fill_value=-9999):
     elif statistic == 'min':
         return np.min(np_data)
     elif statistic == 'median':
-        return np.median
+        return np.median(np_data)
 
 def format_feature_result(query_data, temporal_summary):
     '''
-
     :param query_data: List of tuples (timeseries_id, date_start_dt, date_end_dt, data_value)
     :param temporal_summary:
     :return: json object
@@ -978,13 +987,15 @@ def format_feature_result(query_data, temporal_summary):
     if not query_data:
         return json.dumps({}, ensure_ascii=False).encode('utf8')
 
+
     data = []
     if temporal_summary is not None:
         format = ['start_date', 'end_date', temporal_summary]
-        data_vals = zip(query_data[-1])
+        zipped = zip(*[list(qd) for qd in query_data])
+        data_vals = list(zipped[-1])
         data_val = compute_statistic(data_vals, temporal_summary, fill_value=-9999)
-        start_date = query_data[0][1].strftime('%Y-%m-%d')
-        end_date = query_data[0][-2].strftime('%Y-%m-%d')
+        start_date = zipped[1][0].strftime('%Y-%m-%d')
+        end_date = zipped[-2][-1].strftime('%Y-%m-%d')
         data.append([start_date, end_date, data_val])
     else:
         format = ['start_date', 'end_date', 'data_value']
