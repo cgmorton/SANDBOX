@@ -834,7 +834,13 @@ class new_query_Util(object):
             }
         }
 
-    def get_data_for_feature_id(self, feature_id, temporal_summary=None, year=None, output='json'):
+    def get_data_for_feature_id(self, feature_id, start_date, end_date, temporal_summary=None, output='json'):
+        if isinstance(start_date, basestring):
+            start_date_dt = dt.datetime.strptime(start_date, '%Y-%m-%d')
+            end_date_dt = dt.datetime.strptime(start_date, '%Y-%m-%d')
+        elif isinstance(start_date, dt.date):
+            start_date_dt = start_date
+            end_date_dt = end_date
         s = select([Data.timeseries_id, Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]).\
             where(
                 and_(
@@ -843,7 +849,9 @@ class new_query_Util(object):
                     Data.model_name == self.model,
                     Data.temporal_resolution == self.temporal_resolution,
                     Data.variable_name == self.variable,
-                    Timeseries.timeseries_id == Data.timeseries_id
+                    Timeseries.timeseries_id == Data.timeseries_id,
+                    Timeseries.start_date == start_date_dt,
+                    Timeseries.end_date == end_date_dt
                 )
             )
 
