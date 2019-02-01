@@ -59,6 +59,15 @@ if __name__ == '__main__':
     #    ogrds.DeleteLayer(table)
     '''
 
+    '''
+       # Set up the db session
+       Session = session_module.sessionmaker()
+       Session.configure(bind=engine)
+       session = Session()
+       session.execute("SET search_path TO " + schema + ', public')
+       session.close()
+   '''
+
     DB_USER = config.DRI_DB_USER
     DB_PASSWORD = config.DRI_DB_PASSWORD
     DB_PORT = config.DRI_DB_PORT
@@ -78,17 +87,29 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     QU = db_methods.new_query_Util(model, variable, user_id, temporal_resolution, engine)
-    # 1 API call
-    data = QU.get_data_for_feature_id(1, '2003-01-01', '2003-12-31', temporal_summary='median', output='json')
+    # QU.test()
+
+    '''
+    # 1 API call example
+    Request monthly time series for a single field that is not associated 
+    with a user using the feature_id (unique primary key) directly 
+    '''
+    '''
+    data = QU.get_data_for_feature_id(1, '2003-01-01', '2003-12-31', temporal_summary='raw')
     print(data)
     '''
-    # Set up the db session
-    Session = session_module.sessionmaker()
-    Session.configure(bind=engine)
-    session = Session()
-    session.execute("SET search_path TO " + schema + ', public')
-    session.close()
+
     '''
+    # 2 PAI call example
+    Request mean monthly values for each feature  in a featureCollection
+    '''
+
+    feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
+    sd = '2003-01-01'
+    ed = '2003-06-30'
+    data = QU.get_data_for_features_in_collection(feat_coll_name, sd, ed, temporal_summary='max', spatial_summary='mean')
+    print(data)
+
 
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
