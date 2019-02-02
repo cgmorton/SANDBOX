@@ -94,6 +94,7 @@ if __name__ == '__main__':
     Request monthly time series for a single field that is not associated 
     with a user using the feature_id (unique primary key) directly 
     '''
+
     '''
     data = QU.get_data_for_feature_id(1, '2003-01-01', '2003-12-31', temporal_summary='raw')
     print(data)
@@ -102,12 +103,13 @@ if __name__ == '__main__':
     '''
     # 2 PAI call example
     Request mean monthly values for each feature  in a featureCollection
+    Note: no spatial summary
     '''
 
     feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
     sd = '2003-01-01'
     ed = '2003-06-30'
-    data = QU.get_data_for_features_in_collection(feat_coll_name, sd, ed, temporal_summary='max', spatial_summary='mean')
+    data = QU.get_data_for_features_in_collection(feat_coll_name, sd, ed, temporal_summary='mean')
     print(data)
 
 

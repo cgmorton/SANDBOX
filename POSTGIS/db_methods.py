@@ -912,11 +912,16 @@ class new_query_Util(object):
         return j_data
 
     def get_data_for_features_in_collection(self, feature_collection_name, start_date, end_date, temporal_summary="raw", spatial_summary="mean"):
+        '''
+        FIXME: Compute temp_summary over each feature in db!!
+        :param feature_collection_name:
+        :param start_date:
+        :param end_date:
+        :param temporal_summary:
+        :param spatial_summary:
+        :return:
+        '''
         start_date_dt, end_date_dt = datetimes_from_dates(start_date, end_date)
-
-        j = expr.join(Timeseries, Data,
-                Timeseries.timeseries_id == Data.timeseries_id
-            )
         # Join the approprate tables
         j1 = expr.join(Data, Feature,
                 Feature.feature_id == Data.feature_id
@@ -925,8 +930,10 @@ class new_query_Util(object):
                 Timeseries.timeseries_id == Data.timeseries_id
             )
 
+
         data_col = self.set_temporal_summary_column(temporal_summary)
         # Select
+
         s = expr.select([Data.feature_id, Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]). \
             where(
             expr.and_(
@@ -939,13 +946,28 @@ class new_query_Util(object):
                 Timeseries.start_date >= start_date_dt,
                 Timeseries.end_date <= end_date_dt
             )
-        ).select_from(j2)
+        ).select_from(j2).order_by(Data.feature_id)
         query_data = self.conn.execute(s)
+        first = query_data.fetchone()
+        current_feat_id = first[0]
+        data_vals = []
+        data_summary = []
         for qd in query_data:
-            print(qd)
-
+            if temporal_summary == 'raw':
+                sd = datetimes_to_dates(qd[1])
+                ed = datetimes_to_dates(qd[1])
+                data_summary.append([qd[0], sd, ed, qd[-1]])
+            else:
+                if qd[0] == current_feat_id:
+                    data_vals.append(qd[-1])
+                else:
+                    data_val = compute_statistic(data_vals, temporal_summary, fill_value=-9999)
+                    data_summary.append([qd[0], start_date, end_date, data_val])
+                    current_feat_id = qd[0]
+                    data_vals = []
         j_data = copy.deepcopy(self.json_data)
-        # j_data["properties"]["data_format"], j_data["data"] = format_featureCollection_result(query_data, temporal_summary, spatial_summary)
+        j_data['properties']['format'] = ['start_date', 'end_date', temporal_summary]
+        j_data['data'] = data_summary
         return j_data
 
 
@@ -959,21 +981,26 @@ def datetimes_from_dates(start_date, end_date):
         end_date_dt = end_date
     return start_date_dt, end_date_dt
 
+def datetimes_to_dates(start_date_dt, end_date_dt):
+    start_date =  dt.datetime.strftime(start_date_dt, "%Y-%m-%d")
+    end_date =  dt.datetime.strftime(end_date_dt, "%Y-%m-%d")
+    return start_date, end_date
+
 def compute_statistic(data_vals, statistic, fill_value=-9999):
     np_data = np.ma.masked_array(data_vals, data_vals == fill_value)
 
     if statistic is None:
         return data_vals
     elif statistic == "sum":
-        return np.sum(np_data)
+        return round(np.sum(np_data), 4)
     elif statistic == "mean":
-        return np.mean(np_data)
+        return round(np.mean(np_data), 4)
     elif statistic == "max":
-        return np.max(np_data)
+        return round(np.max(np_data), 4)
     elif statistic == "min":
-        return np.min(np_data)
+        return round(np.min(np_data), 4)
     elif statistic == "median":
-        return np.median(np_data)
+        return round(np.median(np_data), 4)
 
 def format_feature_result(query_data, temporal_summary):
     """
@@ -999,33 +1026,3 @@ def format_feature_result(query_data, temporal_summary):
     data.append([start_date, end_date, data_val])
     return format, data
 
-def format_featureCollection_result(query_data, temporal_summary, spatial_summary):
-    """
-    :param query_data: List of tuples (feature_id, date_start_dt, date_end_dt, data_value)
-    :param temporal_summary:
-    :return: json object
-    """
-    if spatial_summary == 'raw':
-        format =  ["Feature ID", "End Date", 'Data Value']
-    else:
-        format = ["Start Date", "End Date", 'Data Value']
-
-    if not query_data:
-        return format, json.dumps([], ensure_ascii=False).encode("utf8")
-
-
-    data = []
-    if spatial_summary == 'raw':
-        for qd in query_data:
-            pass
-    else:
-        if temporal_summary is not None:
-            zipped = zip(*[list(qd) for qd in query_data])
-            data_vals = list(zipped[-1])
-            data_val = compute_statistic(data_vals, temporal_summary, fill_value=-9999)
-            start_date = zipped[1][0].strftime("%Y-%m-%d")
-            end_date = zipped[-2][-1].strftime("%Y-%m-%d")
-            data.append([start_date, end_date, data_val])
-        else:
-            data = [[qd[1].strftime("%Y-%m-%d"), qd[-2].strftime("%Y-%m-%d"), qd[-1]] for qd in query_data]
-    return format, data
