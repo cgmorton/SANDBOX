@@ -933,7 +933,6 @@ class new_query_Util(object):
 
         data_col = self.set_temporal_summary_column(temporal_summary)
         # Select
-
         s = expr.select([Data.feature_id, Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]). \
             where(
             expr.and_(
