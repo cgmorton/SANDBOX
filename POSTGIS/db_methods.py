@@ -865,18 +865,19 @@ class new_query_Util(object):
 
     def set_temporal_summary_column(self, temporal_summary):
         if temporal_summary == 'raw':
-            return Timeseries.data_value
+            return 'Timeseries.data_value'
         elif temporal_summary == 'mean':
-            return sqa.func.avg(Timeseries.data_value)
+            return 'AVG(Timeseries.data_value)'
         elif temporal_summary == 'max':
-            return sqa.func.max(Timeseries.data_value)
-            return sqa.func.min(Timeseries.data_value)
+            return 'MAX(Timeseries.data_value)'
+        elif temporal_summary == 'min':
+            return 'MIN(Timeseries.data_value)'
         elif temporal_summary == 'sum':
-            return sqa.func.sum(Timeseries.data_value)
+            return 'SUM(Timeseries.data_value)'
         elif temporal_summary == 'median':
             # FIXME: need to write this function
             # https://docs.sqlalchemy.org/en/latest/core/functions.html
-            return Timeseries.data_value
+            return 'Timeseries.data_value'
 
 
     def set_spatial_summary_column(self, spatial_summary):
@@ -959,136 +960,44 @@ class new_query_Util(object):
         :return:
         '''
         start_date_dt, end_date_dt = datetimes_from_dates(start_date, end_date)
-        # Join the approprate tables
-        j1 = sqa.expression.join(Data, Feature,
-                Feature.feature_id == Data.feature_id
-            )
-        j2 = sqa.expression.join(Timeseries, j1,
-                Timeseries.timeseries_id == Data.timeseries_id
-            )
 
-
-        # feature_ids = range(1,5)
-        # temp_summ_s = [self.set_temporal_summary_column_with_filter(temporal_summary, f_id) for f_id in feature_ids]
+        params =  {
+            'start_date': start_date,
+            'end_date': end_date,
+            'feature_collection_name': feature_collection_name,
+            'model': self.model,
+            'variable': self.variable,
+            'temporl_resolution':self.temporal_resolution
+        }
         data_col = self.set_temporal_summary_column(temporal_summary)
+        sql = sqa.text("""
+            SELECT
+            roses.feature.feature_id as feat_id,
+            %s
+            /*AVG(roses.timeseries.data_value) AS avg_1*/
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
 
-        # basic_s returns tsdata for all features
-        basic_s =  sqa.select([Data.feature_id, Timeseries.data_value]). \
-        where(
-            sqa.and_(
-                Feature.feature_collection_name == feature_collection_name,
-                Data.user_id == self.user_id,
-                Data.model_name == self.model,
-                Data.temporal_resolution == self.temporal_resolution,
-                Data.variable_name == self.variable,
-                Timeseries.timeseries_id == Data.timeseries_id,
-                Timeseries.start_date >= start_date_dt,
-                Timeseries.end_date <= end_date_dt
-            )
-        ).select_from(j2).order_by(Data.feature_id).alias()
-        query_data = self.conn.execute(basic_s)
-        first = query_data.fetchone()
-        current_feat_id = first[0]
-        data_vals = []
-        data_summary = []
-        for qd in query_data:
-            if temporal_summary == 'raw':
-                sd = datetimes_to_dates(qd[1])
-                ed = datetimes_to_dates(qd[1])
-                data_summary.append([qd[0], sd, ed, qd[-1]])
-            else:
-                if qd[0] == current_feat_id:
-                    data_vals.append(qd[-1])
-                else:
-                    data_val = compute_statistic(data_vals, temporal_summary, fill_value=-9999)
-                    data_summary.append([qd[0], start_date, end_date, data_val])
-                    current_feat_id = qd[0]
-                    data_vals = []
+            WHERE
+            roses.feature.feature_collection_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
+            AND roses.timeseries.start_date >= '2003-01-01T00:00:00'::timestamp
+            AND roses.timeseries.end_date <= '2003-12-31T00:00:00'::timestamp
+            AND roses.data.user_id = 0
+            AND roses.data.model_name = 'ssebop'
+            AND roses.data.variable_name = 'et'
+            AND roses.data.temporal_resolution = 'monthly'
+            GROUP BY roses.feature.feature_id
+        """ %(data_col))
+        query_data = self.conn.execute(sql)
+        query_data = self.conn.execute(sql, **params)
+        data = [list(qd) for qd in query_data]
         j_data = copy.deepcopy(self.json_data)
-        j_data['properties']['format'] = ['start_date', 'end_date', temporal_summary]
-        j_data['data'] = data_summary
+        j_data['properties']['format'] = ['Feature ID', temporal_summary]
+        j_data['data'] = data
         return j_data
-
-    def test_02_12(self, feature_collection_name, start_date, end_date, temporal_summary="raw"):
-        '''
-        FIXME: Compute temp_summary over each feature in db!!
-        :param feature_collection_name:
-        :param start_date:
-        :param end_date:
-        :param temporal_summary:
-        :param spatial_summary:
-        :return:
-        '''
-        start_date_dt, end_date_dt = datetimes_from_dates(start_date, end_date)
-        # Join the approprate tables
-        j1 = sqa.expression.join(Data, Feature,
-                Feature.feature_id == Data.feature_id
-            )
-        j2 = sqa.expression.join(Timeseries, j1,
-                Timeseries.timeseries_id == Data.timeseries_id
-            )
-
-
-        # feature_ids = range(1,5)
-        # temp_summ_s = [self.set_temporal_summary_column_with_filter(temporal_summary, f_id) for f_id in feature_ids]
-        data_col = self.set_temporal_summary_column(temporal_summary)
-
-        # basic_s returns tsdata for all features
-        basic_s =  sqa.select([Data.feature_id, Timeseries.data_value]). \
-        where(
-            sqa.and_(
-                Feature.feature_collection_name == feature_collection_name,
-                Data.user_id == self.user_id,
-                Data.model_name == self.model,
-                Data.temporal_resolution == self.temporal_resolution,
-                Data.variable_name == self.variable,
-                Timeseries.timeseries_id == Data.timeseries_id,
-                Timeseries.start_date >= start_date_dt,
-                Timeseries.end_date <= end_date_dt
-            )
-        ).select_from(j2).order_by(Data.feature_id).alias()
-
-        '''
-        feat_selects = []
-        for feat_id in range(1, 2):
-            stmt = sqa.select([data_col]). \
-                where(
-                Data.feature_id == feat_id
-            ).alias()
-            feat_selects.append(
-                sqa.select([Data.feature_id, stmt]).select_from(basic_s)
-            )
-        u = sqa.union(*feat_selects)
-        '''
-        #query_data = self.conn.execute(u).fetchall()
-        query_data = self.conn.execute(basic_s)
-
-        for qd in query_data:
-            print(qd)
-        first = query_data.fetchone()
-        current_feat_id = first[0]
-        data_vals = []
-        data_summary = []
-        '''
-        for qd in query_data:
-            if temporal_summary == 'raw':
-                sd = datetimes_to_dates(qd[1])
-                ed = datetimes_to_dates(qd[1])
-                data_summary.append([qd[0], sd, ed, qd[-1]])
-            else:
-                if qd[0] == current_feat_id:
-                    data_vals.append(qd[-1])
-                else:
-                    data_val = compute_statistic(data_vals, temporal_summary, fill_value=-9999)
-                    data_summary.append([qd[0], start_date, end_date, data_val])
-                    current_feat_id = qd[0]
-                    data_vals = []
-        '''
-        j_data = copy.deepcopy(self.json_data)
-        j_data['properties']['format'] = ['start_date', 'end_date', temporal_summary]
-        j_data['data'] = data_summary
-        return j_data
-
+ 
     def api_ex3(self, feature_collection_name, feature_metadata_name, feature_metadata_properties, start_date, end_date, temporal_summary="raw"):
         '''
         Request monthly time series for a single field from a featureCollection

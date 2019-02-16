@@ -87,7 +87,7 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     QU = db_methods.new_query_Util(model, variable, user_id, temporal_resolution, engine)
-    QU.test()
+    # QU.test()
 
 
 
@@ -108,14 +108,13 @@ if __name__ == '__main__':
     Note: no spatial summary
     '''
 
-    '''
+
     feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
     sd = '2003-01-01'
     ed = '2003-06-30'
-    # data = QU.api_ex2(feat_coll_name, sd, ed, temporal_summary='mean')
-    data = QU.test_02_12(feat_coll_name, sd, ed, temporal_summary='mean')
+    data = QU.api_ex2(feat_coll_name, sd, ed, temporal_summary='mean')
     print(data)
-    '''
+
 
     '''
     # 3 API call example
