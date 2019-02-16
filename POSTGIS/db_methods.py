@@ -374,19 +374,20 @@ class database_Util(object):
         print("Table {} exists: {}".format(table_name, ret))
         return ret
 
-    def check_if_data_in_db(self, feature_id, year, session):
+    def check_if_data_in_db(self, feature_id):
         # Check if this entry is already in db
         in_db =  False
         if feature_id is None:
             return in_db
 
         QU = query_Util({
-            "feature_collection": self.feature_collection,
             "model": self.model,
-            "year": year,
-            "temporal_resolution": "monthly",
-            "variable": "et"
-        }, session)
+            "variable": "et",
+            "user_id": 0,
+            "temporal_resolution": self.temporal_resolution,
+            "engine": self.engine
+
+        })
         in_db = QU.check_if_data_in_db(feature_id)
         return in_db
 
@@ -640,7 +641,7 @@ class database_Util(object):
                 # Check if feature is in db
                 feature_id = self.check_if_feature_in_db(self.feature_collection, str(feat_idx), year, session)
                 # Check if  data is in db
-                data_in_db = self.check_if_data_in_db(feature_id, self.year, session)
+                data_in_db = self.check_if_data_in_db(feature_id)
 
                 if feature_id and data_in_db:
                     print("Data for feature_id/year " + str(feature_id) + "/" + str(self.year) + " found in db. Skipping...")
@@ -820,7 +821,7 @@ class date_Util(object):
         end_date = dt.datetime(yr, m, d)
         return start_date, end_date
 
-class new_query_Util(object):
+class query_Util(object):
     """
     Class to support API queries
     """
@@ -847,22 +848,6 @@ class new_query_Util(object):
             }
         }
 
-    def set_temporal_summary_column_with_filter(self, temporal_summary, feature_id):
-        if temporal_summary == 'raw':
-            return Timeseries.data_value
-        elif temporal_summary == 'mean':
-            return sqa.func.avg(Timeseries.data_value).filter(Data.feature_id==feature_id)
-        elif temporal_summary == 'max':
-            return sqa.func.max(Timeseries.data_value).filter(Data.feature_id==feature_id)
-        elif temporal_summary == 'min':
-            return sqa.func.min(Timeseries.data_value).filter(Data.feature_id==feature_id)
-        elif temporal_summary == 'sum':
-            return sqa.func.sum(Timeseries.data_value).filter(Data.feature_id==feature_id)
-        elif temporal_summary == 'median':
-            # FIXME: need to write this function
-            # https://docs.sqlalchemy.org/en/latest/core/functions.html
-            return Timeseries.data_value
-
     def set_temporal_summary_column(self, temporal_summary):
         if temporal_summary == 'raw':
             return 'Timeseries.data_value'
@@ -880,8 +865,38 @@ class new_query_Util(object):
             return 'Timeseries.data_value'
 
 
-    def set_spatial_summary_column(self, spatial_summary):
-        pass
+    def set_spatial_summary_column(self, temp_data_col, spatial_summary):
+        if spatial_summary == 'raw':
+            return temp_data_col
+        elif spatial_summary == 'mean':
+            return 'AVG(' +  temp_data_col +')'
+        elif spatial_summary == 'max':
+            return 'MAX(' +  temp_data_col + ')'
+        elif spatial_summary == 'min':
+            return 'MIN(' +  temp_data_col + ')'
+        elif spatial_summary == 'sum':
+            return 'SUM(' +  temp_data_col + ')'
+        elif spatial_summary == 'median':
+            # FIXME: need to write this function
+            # https://docs.sqlalchemy.org/en/latest/core/functions.html
+            return temp_data_col
+
+    def check_if_data_in_db(self, feature_id):
+        sql = sqa.text("""
+            SELECT
+            roses.timeseries.data_value as data_value,
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+
+            WHERE
+            roses.data.feature_id = %i 
+        """ % (feature_id))
+        query_data = self.conn.execute(sql)
+        if query_data:
+            return True
+        else:
+            return False
 
     def test(self):
         sql = sqa.text("""
@@ -908,7 +923,7 @@ class new_query_Util(object):
             print(qd)
 
 
-    def api_ex1(self, feature_id, start_date, end_date, temporal_summary="raw"):
+    def api_ex1(self, **params):
         """
         Request time series for a single field that is not associated with a user
         using the feature_id (unique primary key) directly
@@ -921,32 +936,47 @@ class new_query_Util(object):
         :param output:
         :return:
         """
-        start_date_dt, end_date_dt = datetimes_from_dates(start_date, end_date)
+        # Sanity ccheck on params
+        if 'feature_id' not in params.keys():
+            return 'ERROR: feature_id must be specified'
+        if 'start_date' not in params.keys():
+            return 'ERROR: start_date must be specified'
+        if 'end_date' not in params.keys():
+            return 'ERROR: end_date must be specified'
+        if 'temporal_summary' not in params.keys():
+            return 'ERROR: temporal_summary must be specified'
 
-        # Join the approprate tables
-        j = sqa.expression.join(Timeseries, Data,
-            Timeseries.timeseries_id == Data.timeseries_id
-        )
-
-        # Select explit join 0.99 secs
-        s = sqa.select([Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]). \
-            where(
-                sqa.and_(
-                    Data.feature_id == int(feature_id),
-                    Data.user_id == self.user_id,
-                    Data.model_name == self.model,
-                    Data.temporal_resolution == self.temporal_resolution,
-                    Data.variable_name == self.variable,
-                    Timeseries.timeseries_id == Data.timeseries_id,
-                    Timeseries.start_date >= start_date_dt,
-                    Timeseries.end_date <= end_date_dt
-                )
-            ).select_from(j)
-        query_data = self.conn.execute(s)
+        data_col = self.set_temporal_summary_column(params['temporal_summary'])
+        fid = params['feature_id']
+        sd = params['start_date']
+        ed = params['end_date']
+        sql = sqa.text("""
+            SELECT
+            roses.data.feature_id as feat_id,
+            /*
+            CAST(roses.timeseries.start_date AS DATE),
+            CAST(roses.timeseries.end_date AS DATE),
+            */
+            %s
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+        
+            WHERE
+            roses.data.feature_id = '%s'
+            AND roses.timeseries.start_date >= '%s'::timestamp
+            AND roses.timeseries.end_date <= '%s'::timestamp
+            AND roses.data.user_id = 0
+            AND roses.data.model_name = '%s'
+            AND roses.data.variable_name = '%s'
+            AND roses.data.temporal_resolution = '%s'
+        """ %(data_col, fid, sd, ed, self.model, self.variable, self.temporal_resolution))
+        query_data = self.conn.execute(sql)
+        data = [list(qd) for qd in query_data]
         j_data = copy.deepcopy(self.json_data)
-        j_data["properties"]["data_format"], j_data["data"] = format_feature_result(query_data, temporal_summary)
-
-        j_data["properties"]["feature_id"] = int(feature_id)
+        j_data['properties'].update(params)
+        j_data['properties']['format'] = ['Feature ID', params['temporal_summary']]
+        j_data['data'] = data
         return j_data
 
     def api_ex2(self, **params):
@@ -957,7 +987,6 @@ class new_query_Util(object):
         :param start_date:
         :param end_date:
         :param temporal_summary:
-        :param spatial_summary:
         :return:
         '''
         # Sanity ccheck on params
@@ -974,12 +1003,10 @@ class new_query_Util(object):
         fc = params['feature_collection_name']
         sd = params['start_date']
         ed = params['end_date']
-        tr = params['temporal_summary']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
+            roses.feature.feature_id as feat_id, 
             %s
-            /*AVG(roses.timeseries.data_value) AS avg_1*/
             FROM
             roses.timeseries
             LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
@@ -996,6 +1023,61 @@ class new_query_Util(object):
             GROUP BY roses.feature.feature_id
         """ %(data_col, fc, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
+        data = [list(qd) for qd in query_data]
+        j_data = copy.deepcopy(self.json_data)
+        j_data['properties'].update(params)
+        j_data['properties']['format'] = ['Feature ID', params['temporal_summary']]
+        j_data['data'] = data
+        return j_data
+
+    def api_ex3(self, **params):
+        '''
+        Request monthly time series for a single field from a featureCollection
+        that is selected by feature_property (feature_id)/feature_value
+        :return:
+        '''
+        # Sanity ccheck on params
+        if 'feature_collection_name' not in params.keys():
+            return 'ERROR: feature_collection_name must be specified'
+        if 'feature_metadata_name' not in params.keys():
+            return 'ERROR: feature_metadata_name must be specified'
+        if 'feature_metadata_properties' not in params.keys():
+            return 'ERROR: feature_metadata_properties must be specified'
+        if 'start_date' not in params.keys():
+            return 'ERROR: start_date must be specified'
+        if 'end_date' not in params.keys():
+            return 'ERROR: end_date must be specified'
+        if 'temporal_summary' not in params.keys():
+            return 'ERROR: temporal_summary must be specified'
+
+        data_col = self.set_temporal_summary_column(params['temporal_summary'])
+        fc = params['feature_collection_name']
+        fmn = params['feature_metadata_name']
+        fmp = params['feature_metadata_properties']
+        sd = params['start_date']
+        ed = params['end_date']
+        sql = sqa.text("""
+            SELECT
+            roses.feature.feature_id as feat_id,
+            %s
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+            LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
+            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            
+            WHERE
+            roses.feature.feature_collection_name = '%s'
+            AND roses.feature_metadata.feature_metadata_name = '%s'
+            AND roses.feature_metadata.feature_metadata_properties = '%s'
+            AND roses.timeseries.start_date >= '%s'::timestamp
+            AND roses.timeseries.end_date <= '%s'::timestamp
+            AND roses.data.user_id = 0
+            AND roses.data.model_name = '%s'
+            AND roses.data.variable_name = '%s'
+            AND roses.data.temporal_resolution = '%s'
+            GROUP BY roses.feature.feature_id
+        """ % (data_col, fc, fmn, fmp, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
         j_data = copy.deepcopy(self.json_data)
@@ -1004,46 +1086,182 @@ class new_query_Util(object):
         j_data['data'] = data
         return j_data
 
-    def api_ex3(self, feature_collection_name, feature_metadata_name, feature_metadata_properties, start_date, end_date, temporal_summary="raw"):
+    def api_ex4(self, **params):
         '''
         Request monthly time series for a single field from a featureCollection
         that is selected by feature_property (feature_id)/feature_value
         :return:
         '''
-        start_date_dt, end_date_dt = datetimes_from_dates(start_date, end_date)
+        # Sanity ccheck on params
+        if 'feature_collection_name' not in params.keys():
+            return 'ERROR: feature_collection_name must be specified'
+        if 'feature_metadata_name' not in params.keys():
+            return 'ERROR: feature_metadata_name must be specified'
+        if 'feature_metadata_properties' not in params.keys():
+            return 'ERROR: feature_metadata_properties must be specified'
+        if 'start_date' not in params.keys():
+            return 'ERROR: start_date must be specified'
+        if 'end_date' not in params.keys():
+            return 'ERROR: end_date must be specified'
+        if 'temporal_summary' not in params.keys():
+            return 'ERROR: temporal_summary must be specified'
+        if 'spatial_summary' not in params.keys():
+            return 'ERROR: spatial_summary must be specified'
 
-        # Join the approprate tables
-        j1 = sqa.expression.join(Feature, FeatureMetadata,
-                                 Feature.feature_id == FeatureMetadata.feature_id)
-        j2 = sqa.expression.join(Data, j1,
-                                 Data.feature_id == Feature.feature_id)
-        j3 = sqa.expression.join(Timeseries, j2,
-                                 Timeseries.timeseries_id == Data.timeseries_id)
+        ts = params['temporal_summary']
+        ss = params['spatial_summary']
+        # data_col = self.set_spatial_summary_column(self.set_temporal_summary_column(ts), ss)
+        data_col = self.set_temporal_summary_column(ts)
+        fc = params['feature_collection_name']
+        sd = params['start_date']
+        ed = params['end_date']
+        sql = sqa.text("""
+            SELECT
+            ST_AREA(roses.feature.geometry),
+            %s
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id 
+            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
 
-        s = sqa.select([Timeseries.start_date, Timeseries.end_date, Timeseries.data_value]). \
-            where(
-            sqa.and_(
-                Feature.feature_collection_name == feature_collection_name,
-                FeatureMetadata.feature_metadata_name == feature_metadata_name,
-                FeatureMetadata.feature_metadata_properties == feature_metadata_properties,
-                Data.user_id == self.user_id,
-                Data.model_name == self.model,
-                Data.temporal_resolution == self.temporal_resolution,
-                Data.variable_name == self.variable,
-                Timeseries.timeseries_id == Data.timeseries_id,
-                Timeseries.start_date >= start_date_dt,
-                Timeseries.end_date <= end_date_dt
-            )
-        ).select_from(j3).order_by(Data.feature_id).alias()
-        query_data = self.conn.execute(s)
-        '''
+            WHERE
+            roses.feature.feature_collection_name = '%s' 
+            AND roses.timeseries.start_date >= '%s'::timestamp
+            AND roses.timeseries.end_date <= '%s'::timestamp
+            AND roses.data.user_id = 0
+            AND roses.data.model_name = '%s'
+            AND roses.data.variable_name = '%s'
+            AND roses.data.temporal_resolution = '%s'
+            GROUP BY roses.feature.geometry
+        """ % (data_col, fc, sd, ed, self.model, self.variable, self.temporal_resolution))
+        query_data = self.conn.execute(sql)
+        # Get the area average
+        data = []
+        summ = 0
+        total_area = 0
+        num_feats = 0
         for qd in query_data:
-            print qd
-        '''
+            summ += qd[0] * qd[1]
+            num_feats +=1
+            total_area += qd[0]
+        # data = round((1.0 / (total_area * num_feats)) * summ, 4)
+        data = round((1.0 / total_area) * summ, 4)
         j_data = copy.deepcopy(self.json_data)
-        j_data["properties"]["data_format"], j_data["data"] = format_feature_result(query_data, temporal_summary)
-        j_data["properties"]["feature_metadata_name"] = feature_metadata_name
-        j_data["properties"]["feature_metadata_properties"] = feature_metadata_properties
+        j_data['properties'].update(params)
+        j_data['properties']['format'] = ['Area Averaged Data Value']
+        j_data['data'] = data
+        return j_data
+
+    def api_ex5(self, **params):
+        '''
+        Request monthly time series for a single field from a featureCollection
+        that is selected by feature_property (feature_id)/feature_value
+        :return:
+        '''
+        # Sanity ccheck on params
+        if 'feature_collection_name' not in params.keys():
+            return 'ERROR: feature_collection_name must be specified'
+        if 'feature_metadata_name' not in params.keys():
+            return 'ERROR: feature_metadata_name must be specified'
+        if 'feature_metadata_properties' not in params.keys():
+            return 'ERROR: feature_metadata_properties must be specified'
+        if 'start_date' not in params.keys():
+            return 'ERROR: start_date must be specified'
+        if 'end_date' not in params.keys():
+            return 'ERROR: end_date must be specified'
+        if 'temporal_summary' not in params.keys():
+            return 'ERROR: temporal_summary must be specified'
+
+        data_col = self.set_temporal_summary_column(params['temporal_summary'])
+        fc = params['feature_collection_name']
+        fmn = params['feature_metadata_name']
+        fmp = params['feature_metadata_properties']
+        sd = params['start_date']
+        ed = params['end_date']
+        sql = sqa.text("""
+            SELECT
+            roses.feature.feature_id as feat_id,
+            %s
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+            LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
+            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+
+            WHERE
+            roses.feature.feature_collection_name = '%s'
+            AND roses.feature_metadata.feature_metadata_name = '%s'
+            AND roses.feature_metadata.feature_metadata_properties IN %s
+            AND roses.timeseries.start_date >= '%s'::timestamp
+            AND roses.timeseries.end_date <= '%s'::timestamp
+            AND roses.data.user_id = 0
+            AND roses.data.model_name = '%s'
+            AND roses.data.variable_name = '%s'
+            AND roses.data.temporal_resolution = '%s'
+            GROUP BY roses.feature.feature_id
+        """ % (data_col, fc, fmn, fmp, sd, ed, self.model, self.variable, self.temporal_resolution))
+        query_data = self.conn.execute(sql)
+        data = [list(qd) for qd in query_data]
+        j_data = copy.deepcopy(self.json_data)
+        j_data['properties'].update(params)
+        j_data['properties']['format'] = ['Feature ID', params['temporal_summary']]
+        j_data['data'] = data
+        return j_data
+
+    def api_ex6(self, **params):
+        '''
+        Request mean monthly values for each feature  in a featureCollection
+        FIXME: Compute temp_summary over each feature in db!!
+        :param feature_collection_name:
+        :param start_date:
+        :param end_date:
+        :param temporal_summary:
+        :param spatial_summary:
+        :return:
+        '''
+        # Sanity ccheck on params
+        if 'feature_collection_name' not in params.keys():
+            return 'ERROR: feature_collection_name must be specified'
+        if 'selection_geometry' not in params.keys():
+            return 'ERROR: selection must be specified'
+        if 'start_date' not in params.keys():
+            return 'ERROR: start_date must be specified'
+        if 'end_date' not in params.keys():
+            return 'ERROR: end_date must be specified'
+        if 'temporal_summary' not in params.keys():
+            return 'ERROR: temporal_summary must be specified'
+
+        data_col = self.set_temporal_summary_column(params['temporal_summary'])
+        fc = params['feature_collection_name']
+        sg = params['selection_geometry']
+        sd = params['start_date']
+        ed = params['end_date']
+        sql = sqa.text("""
+            SELECT
+            roses.feature.feature_id as feat_id, 
+            %s
+            FROM
+            roses.timeseries
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+
+            WHERE
+            roses.feature.feature_collection_name = '%s'
+            AND ST_CONTAINS(ST_GeomFromText('%s'), roses.feature.geometry)
+            AND roses.timeseries.start_date >= '%s'::timestamp
+            AND roses.timeseries.end_date <= '%s'::timestamp
+            AND roses.data.user_id = 0
+            AND roses.data.model_name = '%s'
+            AND roses.data.variable_name = '%s'
+            AND roses.data.temporal_resolution = '%s'
+            GROUP BY roses.feature.feature_id
+        """ %(data_col, fc, sg, sd, ed, self.model, self.variable, self.temporal_resolution))
+        query_data = self.conn.execute(sql)
+        data = [list(qd) for qd in query_data]
+        j_data = copy.deepcopy(self.json_data)
+        j_data['properties'].update(params)
+        j_data['properties']['format'] = ['Feature ID', params['temporal_summary']]
+        j_data['data'] = data
         return j_data
 
 

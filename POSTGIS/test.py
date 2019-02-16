@@ -86,28 +86,33 @@ if __name__ == '__main__':
     engine = create_engine(db_string, pool_size=20, max_overflow=0)
     # db_methods.Base.metadata.bind = engine
 
-    QU = db_methods.new_query_Util(model, variable, user_id, temporal_resolution, engine)
+    QU = db_methods.query_Util(model, variable, user_id, temporal_resolution, engine)
     # QU.test()
 
 
 
     '''
-    # 1 API call example
+    # 1 API call example 0.277secs
     Request monthly time series for a single field that is not associated 
     with a user using the feature_id (unique primary key) directly 
     '''
-
     '''
-    data = QU.api_ex_1(1, '2003-01-01', '2003-12-31', temporal_summary='raw')
+    params = {
+        'start_date': '2003-01-01',
+        'end_date': '2003-12-31',
+        'feature_id': 4,
+        'temporal_summary': 'raw'
+    }
+    data = QU.api_ex1(**params)
     print(data)
     '''
 
     '''
-    # 2 API call example
+    # 2 API call example 1.45secs
     Request mean monthly values for each feature  in a featureCollection
     Note: no spatial summary
     '''
-
+    '''
     params = {
         'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
         'start_date': '2003-01-01',
@@ -116,23 +121,78 @@ if __name__ == '__main__':
     }
     data = QU.api_ex2(**params)
     print(data)
-
+    '''
 
     '''
-    # 3 API call example
+    # 3 API call example 0.44 seconds
     Request monthly time series for a single field from a featureCollection that is selected by metadata;
     feature_metadata_name (feature_id)/feature_metadata_value
     Note: no spatial summary
     '''
 
     '''
-    feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
-    feature_id = '2645'
-    sd = '2003-01-01'
-    ed = '2003-06-30'
-    data = QU.api_ex3(feat_coll_name, 'OBJECTID', feature_id, sd, ed, temporal_summary="mean")
+    params = {
+        'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
+        'feature_metadata_name': 'OBJECTID',
+        'feature_metadata_properties': '2645',
+        'start_date': '2003-01-01',
+        'end_date': '2003-06-30',
+        'temporal_summary': 'mean'
+    }
+    data = QU.api_ex3(**params)
     print(data)
     '''
+
+    '''
+    # 4 API call example 2.189 seconds
+    Request area averaged max monthly values for all features in a featureCollection for a user 
+    '''
+    '''
+    params = {
+        'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
+        'start_date': '2003-01-01',
+        'end_date': '2003-06-30',
+        'temporal_summary': 'max',
+        'spatial_summary': 'mean'
+    }
+    data = QU.api_ex4(**params)
+    print(data)
+    '''
+
+    '''
+    # 5 API call example  seconds 0.428
+    Request monthly time series for a subset of features in collection defined by list of property values
+    '''
+
+    '''
+    params = {
+        'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
+        'feature_metadata_name': 'OBJECTID',
+        'feature_metadata_properties': ('2708', '2640', '2706'),
+        'start_date': '2003-01-01',
+        'end_date': '2003-12-31',
+        'temporal_summary': 'mean'
+    }
+    data = QU.api_ex5(**params)
+    print(data)
+    '''
+
+    '''
+    # 6 API call example  0.7411 seconds
+    Request time series for subset of features in collection defined by a separate geometry (like bbox or polygon) 
+    '''
+
+    params = {
+        'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
+        'selection_geometry': 'POLYGON((-111.5 42, -111.5 43, -111.4 43, -111.4 42, -111.5 42))',
+        'start_date': '2003-01-01',
+        'end_date': '2003-12-31',
+        'temporal_summary': 'mean'
+    }
+    data = QU.api_ex6(**params)
+    print(data)
+
+
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
