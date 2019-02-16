@@ -87,7 +87,9 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     QU = db_methods.new_query_Util(model, variable, user_id, temporal_resolution, engine)
-    # QU.test()
+    QU.test()
+
+
 
     '''
     # 1 API call example
@@ -96,23 +98,40 @@ if __name__ == '__main__':
     '''
 
     '''
-    data = QU.get_data_for_feature_id(1, '2003-01-01', '2003-12-31', temporal_summary='raw')
+    data = QU.api_ex_1(1, '2003-01-01', '2003-12-31', temporal_summary='raw')
     print(data)
     '''
 
     '''
-    # 2 PAI call example
+    # 2 API call example
     Request mean monthly values for each feature  in a featureCollection
     Note: no spatial summary
     '''
 
+    '''
     feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
     sd = '2003-01-01'
     ed = '2003-06-30'
-    data = QU.get_data_for_features_in_collection(feat_coll_name, sd, ed, temporal_summary='mean')
+    # data = QU.api_ex2(feat_coll_name, sd, ed, temporal_summary='mean')
+    data = QU.test_02_12(feat_coll_name, sd, ed, temporal_summary='mean')
     print(data)
+    '''
 
+    '''
+    # 3 API call example
+    Request monthly time series for a single field from a featureCollection that is selected by metadata;
+    feature_metadata_name (feature_id)/feature_metadata_value
+    Note: no spatial summary
+    '''
 
+    '''
+    feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
+    feature_id = '2645'
+    sd = '2003-01-01'
+    ed = '2003-06-30'
+    data = QU.api_ex3(feat_coll_name, 'OBJECTID', feature_id, sd, ed, temporal_summary="mean")
+    print(data)
+    '''
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
