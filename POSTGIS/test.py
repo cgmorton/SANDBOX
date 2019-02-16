@@ -108,11 +108,13 @@ if __name__ == '__main__':
     Note: no spatial summary
     '''
 
-
-    feat_coll_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
-    sd = '2003-01-01'
-    ed = '2003-06-30'
-    data = QU.api_ex2(feat_coll_name, sd, ed, temporal_summary='mean')
+    params = {
+        'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
+        'start_date': '2003-01-01',
+        'end_date': '2003-06-30',
+        'temporal_summary': 'sum'
+    }
+    data = QU.api_ex2(**params)
     print(data)
 
 
