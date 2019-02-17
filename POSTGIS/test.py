@@ -101,9 +101,12 @@ if __name__ == '__main__':
         'start_date': '2003-01-01',
         'end_date': '2003-12-31',
         'feature_id': 4,
-        'temporal_summary': 'raw'
+        'temporal_summary': 'mean'
     }
-    data = QU.api_ex1(**params)
+    if params['temporal_summary'] == 'raw':
+        data = QU.api_ex1_raw(**params)
+    else:
+        data = QU.api_ex1(**params)
     print(data)
     '''
 
@@ -112,16 +115,21 @@ if __name__ == '__main__':
     Request mean monthly values for each feature  in a featureCollection
     Note: no spatial summary
     '''
-    '''
+
+
     params = {
         'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
         'start_date': '2003-01-01',
-        'end_date': '2003-06-30',
-        'temporal_summary': 'sum'
+        'end_date': '2003-3-31',
+        'temporal_summary': 'mean'
     }
+    if params['temporal_summary'] == 'raw':
+        data = QU.api_ex2_raw(**params)
+    else:
+        data = QU.api_ex2(**params)
     data = QU.api_ex2(**params)
     print(data)
-    '''
+
 
     '''
     # 3 API call example 0.44 seconds
@@ -137,25 +145,32 @@ if __name__ == '__main__':
         'feature_metadata_properties': '2645',
         'start_date': '2003-01-01',
         'end_date': '2003-06-30',
-        'temporal_summary': 'mean'
+        'temporal_summary': 'raw'
     }
-    data = QU.api_ex3(**params)
+    if params['temporal_summary'] == 'raw':
+        data = QU.api_ex3_raw(**params)
+    else:
+        data = QU.api_ex3(**params)
     print(data)
     '''
 
     '''
-    # 4 API call example 2.189 seconds
+    # 4 API call example 2.189 seconds, 95.12 seconds for temporal_summary = 'raw'
     Request area averaged max monthly values for all features in a featureCollection for a user 
     '''
-    '''
+
     params = {
         'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
         'start_date': '2003-01-01',
         'end_date': '2003-06-30',
-        'temporal_summary': 'max',
+        'temporal_summary': 'sum',
         'spatial_summary': 'mean'
     }
-    data = QU.api_ex4(**params)
+    '''
+    if params['temporal_summary'] == 'raw':
+        data = QU.api_ex4_raw(**params)
+    else:
+        data = QU.api_ex4(**params)
     print(data)
     '''
 
@@ -164,7 +179,7 @@ if __name__ == '__main__':
     Request monthly time series for a subset of features in collection defined by list of property values
     '''
 
-    '''
+
     params = {
         'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
         'feature_metadata_name': 'OBJECTID',
@@ -173,7 +188,11 @@ if __name__ == '__main__':
         'end_date': '2003-12-31',
         'temporal_summary': 'mean'
     }
-    data = QU.api_ex5(**params)
+    '''
+    if params['temporal_summary'] == 'raw':
+        data = QU.api_ex5_raw(**params)
+    else:
+        data = QU.api_ex5(**params)
     print(data)
     '''
 
@@ -181,7 +200,7 @@ if __name__ == '__main__':
     # 6 API call example  0.7411 seconds
     Request time series for subset of features in collection defined by a separate geometry (like bbox or polygon) 
     '''
-
+    '''
     params = {
         'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
         'selection_geometry': 'POLYGON((-111.5 42, -111.5 43, -111.4 43, -111.4 42, -111.5 42))',
@@ -189,9 +208,12 @@ if __name__ == '__main__':
         'end_date': '2003-12-31',
         'temporal_summary': 'mean'
     }
-    data = QU.api_ex6(**params)
+    if params['temporal_summary'] == 'raw':
+        data = QU.api_ex6_raw(**params)
+    else:
+        data = QU.api_ex6(**params)
     print(data)
-
+    '''
 
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
