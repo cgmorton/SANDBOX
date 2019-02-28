@@ -14,12 +14,12 @@ from sqlalchemy.orm import session as session_module
 if __name__ == '__main__':
 
     # start_time = time.time()
-    DB_USER = config.DRI_DB_USER
-    DB_PASSWORD = config.DRI_DB_PASSWORD
-    DB_PORT = config.DRI_DB_PORT
-    DB_HOST = config.DRI_DB_HOST
-    DB_NAME = config.DRI_DB_NAME
-    schema = config.schema
+    DB_USER = config.OPENET_DB_USER
+    DB_PASSWORD = config.OPENET_DB_PASSWORD
+    DB_PORT = config.OPENET_DB_PORT
+    DB_HOST = config.OPENET_DB_HOST
+    DB_NAME = config.OPENET_DB_NAME
+    schema = config.OPENET_SCHEMA
 
 
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
@@ -28,9 +28,10 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
+    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-
+    '''
 
     start_time = time.time()
 
@@ -38,10 +39,6 @@ if __name__ == '__main__':
     Session = session_module.sessionmaker()
     # Session = scoped_session(sessionmaker())
     Session.configure(bind=engine)
-    '''
-    session = Session()
-    session.execute("SET search_path TO " + schema + ', public')
-    '''
 
     # print(Base.metadata.sorted_tables)
     user_id = 0

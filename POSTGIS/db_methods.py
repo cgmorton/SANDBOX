@@ -218,7 +218,7 @@ class Report(Base):
 
 class database_Util(object):
     """
-    Class to support database (cloudSQL) population
+    Class to support database (postgres+postgis) population
     Method:
         - The base query is defined from relevant template values
     Args:
@@ -226,6 +226,8 @@ class database_Util(object):
         :model SSEBop etc
         :year year of geojson model, might be ALL if not USFields
             USField geojsons change every year
+        :user_id
+        :feature_collection_changing_by_year: True or False, if False year = 9999 in Feature table
     """
     def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
         self.feature_collection = feature_collection
@@ -606,10 +608,6 @@ class database_Util(object):
         report_id = 0
         timeseries_id = 0
         while chunk <= num_chunks:
-            """
-            data_entities = []
-            meta_entities = []
-            """
             csv_metadata = open("metadata.csv", "wb+")
             csv_data = open("data.csv", "wb+")
             csv_timeseries = open("timeseries.csv", "wb+")
