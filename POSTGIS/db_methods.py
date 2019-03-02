@@ -32,11 +32,16 @@ import geojson
 import numpy as np
 import config
 
+
+from populate_db import SCHEMA as schema
+from populate_db import GEO_BUCKET_URL, DATA_BUCKET_URL
+
 #######################################
 # OpenET database tables
 #######################################
 Base = declarative_base()
-schema = config.NASA_ROSES_SCHEMA
+# schema = config.NASA_ROSES_SCHEMA
+
 Base.metadata = db.MetaData(schema=schema)
 
 #event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
@@ -228,18 +233,21 @@ class database_Util(object):
         :user_id
         :feature_collection_changing_by_year: True or False, if False year = 9999 in Feature table
     """
-    def __init__(self, project, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
+    def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
         self.feature_collection = feature_collection
         self.year = int(year)
         self.model = model
         self.user_id = user_id
-        self.geo_bucket_url = config.NASA_ROSES_GEO_BUCKET_URL
+        self.geo_bucket_url = GEO_BUCKET_URL
+        self.data_bucket_url = DATA_BUCKET_URL
+        '''
         if project == "NASA_ROSES":
             self.data_bucket_url = config.NASA_ROSES_DATA_BUCKET_URL
         elif project == "OPENET":
             self.data_bucket_url = config.OPENET_ROSES_DATA_BUCKET_URL
         else:
             raise Exception('Project must be in list: ' + str(config.projects))
+        '''
         self.feature_collection_changing_by_year = feature_collection_changing_by_year
         self.engine = engine
 

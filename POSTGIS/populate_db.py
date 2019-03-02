@@ -7,20 +7,16 @@ from sqlalchemy.orm import session as session_module
 # from sqlalchemy.orm import scoped_session, sessionmaker
 
 
-#######################################
-# END OpenET database tables
-#######################################
+SCHEMA = config.NASA_ROSES_SCHEMA
+DB_USER = config.NASA_ROSES_DB_USER
+DB_PASSWORD = config.NASA_ROSES_DB_PASSWORD
+DB_PORT = config.NASA_ROSES_DB_PORT
+DB_HOST = config.NASA_ROSES_DB_HOST
+DB_NAME = config.NASA_ROSES_DB_NAME
+GEO_BUCKET_URL = config.NASA_ROSES_GEO_BUCKET_URL
+DATA_BUCKET_URL = config.NASA_ROSES_DATA_BUCKET_URL
 
 if __name__ == '__main__':
-    project = 'NASA_ROSES'
-    # start_time = time.time()
-    DB_USER = config.NASA_ROSES_DB_USER
-    DB_PASSWORD = config.NASA_ROSES_DB_PASSWORD
-    DB_PORT = config.NASA_ROSES_DB_PORT
-    DB_HOST = config.NASA_ROSES_DB_HOST
-    DB_NAME = config.NASA_ROSES_DB_NAME
-    schema = config.NASA_ROSES_SCHEMA
-
 
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
     db_string += "@" + DB_HOST +  ":" + str(DB_PORT) + '/' + DB_NAME
@@ -28,10 +24,10 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
-
+    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-
+    '''
 
     start_time = time.time()
 
@@ -42,8 +38,7 @@ if __name__ == '__main__':
 
     # print(Base.metadata.sorted_tables)
     user_id = 0
-    project = 'NASA_ROSES'
-    for feat_coll in config.statics['feature_collections'].keys()[0:1]:
+    for feat_coll in config.statics['regions'][2:3]:
         geom_change_by_year = False
         if feat_coll in config.statics['feature_collections_changing_by_year']:
             geom_change_by_year = True
@@ -53,11 +48,11 @@ if __name__ == '__main__':
             years = range(s_year, e_year)
             for year_int in years[0:1]:
                 year = str(year_int)
-                DB_Util = db_methods.database_Util(project, feat_coll, model, year, user_id, geom_change_by_year, engine)
+                DB_Util = db_methods.database_Util(feat_coll, model, year, user_id, geom_change_by_year, engine)
                 etdata = DB_Util.read_etdata_from_bucket()
                 geojson_data = DB_Util.read_geodata_from_bucket()
                 session = Session()
-                session.execute("SET search_path TO " + schema + ', public')
+                session.execute("SET search_path TO " + SCHEMA + ', public')
                 DB_Util.add_data_to_db(session, user_id=user_id, etdata=etdata, geojson_data=geojson_data)
                 session.close()
     

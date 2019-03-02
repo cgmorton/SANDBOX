@@ -1,5 +1,12 @@
 {
   "ingest_chunk_size": 1000,
+  "regions": [
+    "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
+    "BRC_Combined_subset_2009",
+    "WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
+    "usgs_central_valley_mod_base15_ca_poly_170616",
+    "paso_robles_base15_ca_poly_170616"
+  ],
   "feature_collections": {
     "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset": {
       "users": [0],
