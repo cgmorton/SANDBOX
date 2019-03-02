@@ -240,14 +240,6 @@ class database_Util(object):
         self.user_id = user_id
         self.geo_bucket_url = GEO_BUCKET_URL
         self.data_bucket_url = DATA_BUCKET_URL
-        '''
-        if project == "NASA_ROSES":
-            self.data_bucket_url = config.NASA_ROSES_DATA_BUCKET_URL
-        elif project == "OPENET":
-            self.data_bucket_url = config.OPENET_ROSES_DATA_BUCKET_URL
-        else:
-            raise Exception('Project must be in list: ' + str(config.projects))
-        '''
         self.feature_collection_changing_by_year = feature_collection_changing_by_year
         self.engine = engine
 
@@ -393,15 +385,7 @@ class database_Util(object):
         in_db =  False
         if feature_id is None:
             return in_db
-
-        QU = query_Util({
-            "model": self.model,
-            "variable": "et",
-            "user_id": 0,
-            "temporal_resolution": self.temporal_resolution,
-            "engine": self.engine
-
-        })
+        QU = query_Util(self.model,"et", 0, "monthly", self.engine)
         in_db = QU.check_if_data_in_db(feature_id)
         return in_db
 
