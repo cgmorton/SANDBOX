@@ -36,8 +36,7 @@ import config
 # OpenET database tables
 #######################################
 Base = declarative_base()
-# schema="openet geodatabase"
-schema = config.schema
+schema = config.NASA_ROSES_SCHEMA
 Base.metadata = db.MetaData(schema=schema)
 
 #event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
@@ -74,8 +73,8 @@ class ModelMetadata(Base):
 
     model = relationship("Model", back_populates="model_metadata", cascade="save-update, merge, delete", foreign_keys="ModelMetadata.model_name")
 
-
-
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 
 class User(Base):
@@ -229,13 +228,18 @@ class database_Util(object):
         :user_id
         :feature_collection_changing_by_year: True or False, if False year = 9999 in Feature table
     """
-    def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
+    def __init__(self, project, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
         self.feature_collection = feature_collection
         self.year = int(year)
         self.model = model
         self.user_id = user_id
-        self.geo_bucket_url = config.GEO_BUCKET_URL
-        self.data_bucket_url = config.DATA_BUCKET_URL
+        self.geo_bucket_url = config.NASA_ROSES_GEO_BUCKET_URL
+        if project == "NASA_ROSES":
+            self.data_bucket_url = config.NASA_ROSES_DATA_BUCKET_URL
+        elif project == "OPENET":
+            self.data_bucket_url = config.OPENET_ROSES_DATA_BUCKET_URL
+        else:
+            raise Exception('Project must be in list: ' + str(config.projects))
         self.feature_collection_changing_by_year = feature_collection_changing_by_year
         self.engine = engine
 
@@ -367,7 +371,7 @@ class database_Util(object):
 
     def database_is_empty(self):
         table_names = db.inspect(self.engine).get_table_names()
-        is_empty = table_names == []
+        is_empty = table_names == [] or len(table_names) == 1
         print("DB is empty: {}".format(is_empty))
         return is_empty
 
@@ -570,12 +574,15 @@ class database_Util(object):
         # Check if database is empty
         # If not empty, we need to check if entries are already in db
         db_empty = False
-
-        q = session.query(Data).first()
-        if q is None:
+        try:
+            q = session.query(Data).first()
+            if q is None:
+                db_empty = True
+        except:
             db_empty = True
+            # db_empty = self.database_is_empty()
 
-        # db_empty = self.database_is_empty()
+
 
         if db_empty:
             # Set up feature_collection, model, parameter and variable tables
