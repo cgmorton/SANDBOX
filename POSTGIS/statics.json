@@ -1,5 +1,5 @@
 {
-  "ingest_chunk_size": 50,
+  "ingest_chunk_size": 1000,
   "feature_collection_list": [
     "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
     "BRC_Combined_subset_2009",

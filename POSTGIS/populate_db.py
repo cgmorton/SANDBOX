@@ -24,9 +24,10 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
-
+    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
+    '''
 
     start_time = time.time()
 
@@ -37,7 +38,7 @@ if __name__ == '__main__':
 
     # print(Base.metadata.sorted_tables)
     user_id = 0
-    for feat_coll in config.statics['feature_collection_list'][0:1]:
+    for feat_coll in config.statics['feature_collection_list'][2:3]:
         geom_change_by_year = False
         if feat_coll in config.statics['feature_collections_changing_by_year']:
             geom_change_by_year = True
