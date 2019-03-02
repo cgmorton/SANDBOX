@@ -1,4 +1,4 @@
-import os
+import os, sys
 import datetime as dt
 import logging
 import json
@@ -228,20 +228,25 @@ class database_Util(object):
     Args:
         :feature_collection Unique ID of geojson file containing fields for the feature_collection
         :model SSEBop etc
-        :year year of geojson model, might be ALL if not USFields
-            USField geojsons change every year
-        :user_id
-        :feature_collection_changing_by_year: True or False, if False year = 9999 in Feature table
+        :year data year
+        :user_id 0 if feature_collection is public
+        :feature_collection_changing_by_year: True or False, if False we set year = 9999 in Feature table
+        :override: id True, all data associated with the user and feature collection already in the db, will be deleted
+                   and new data will be added when add_data_to_db is called
+    Notes:
+        - if the feature_collection for this user is already in the db  and override is False
     """
     def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
         self.feature_collection = feature_collection
         self.year = int(year)
         self.model = model
         self.user_id = user_id
-        self.geo_bucket_url = GEO_BUCKET_URL
-        self.data_bucket_url = DATA_BUCKET_URL
         self.feature_collection_changing_by_year = feature_collection_changing_by_year
         self.engine = engine
+        self.conn = engine.connect()
+
+        self.geo_bucket_url = GEO_BUCKET_URL
+        self.data_bucket_url = DATA_BUCKET_URL
 
         # Used to read geometry data from buckets
         if self.feature_collection_changing_by_year:
@@ -380,22 +385,44 @@ class database_Util(object):
         print("Table {} exists: {}".format(table_name, ret))
         return ret
 
-    def check_if_data_in_db(self, feature_id):
+    def check_if_features_in_db(self, feature_collection, feature_year, session):
+        coll_name = config.statics["feature_collections"][feature_collection]["feature_collection_name"]
+        feature_query = session.query(Feature).filter(
+            Feature.feature_collection_name == coll_name,
+            Feature.year == feature_year
+        )
+        try:
+            d = self.object_as_dict(feature_query.first())
+            if d:
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    def check_if_data_in_db(self, feature_id, session):
         # Check if this entry is already in db
         in_db =  False
         if feature_id is None:
             return in_db
-        QU = query_Util(self.model,"et", 0, "monthly", self.engine)
-        in_db = QU.check_if_data_in_db(feature_id)
+        data_query = session.query(Data).filter(
+            Data.feature_id == feature_id,
+            Data.user_id == self.user_id,
+            Data.model_name == self.model
+        )
+        if len(data_query.all()) > 1:
+            in_db =  True
+        else:
+            in_db = False
         return in_db
 
 
-    def check_if_feature_in_db(self, feature_collection, feature_id_from_user, year, session):
+    def check_if_feature_in_db(self, feature_collection, feature_id_from_user, feature_year, session):
         coll_name = config.statics["feature_collections"][feature_collection]["feature_collection_name"]
         feature_query = session.query(Feature).filter(
-            Feature.feature_id_from_user == str(feature_id_from_user),
-            Feature.year == year,
-            Feature.feature_collection_name == coll_name
+            Feature.feature_collection_name == coll_name,
+            Feature.feature_id_from_user == feature_id_from_user,
+            Feature.year == feature_year
         )
         if len(feature_query.all()) == 0:
             return None
@@ -405,6 +432,13 @@ class database_Util(object):
         feature = feature_query.first()
         feature_id = feature.feature_id
         return feature_id
+
+    def get_last_timeseries_id(self, session):
+        try:
+            ts_id = session.query(Timeseries).order_by(Timeseries.timeseries_id.desc()).first().timeseries_id
+        except:
+            ts_id = 0
+        return ts_id
 
     def set_postgis_geometry(self, shapely_geom):
         postgis_geom = None
@@ -524,6 +558,7 @@ class database_Util(object):
             del coll_dict["metadata"]
             users = coll_dict["users"]
             del coll_dict["users"]
+            del coll_dict['permission']
             for user in users:
                 init_dict = copy.deepcopy(coll_dict)
                 init_dict["user_id"] = user
@@ -553,17 +588,9 @@ class database_Util(object):
             geojson_data: contains the geometry information as geojson, if None, data is read from bucket
         :return:
         """
-        # Read etdata from bucket
-        if etdata is None:
-            etdata = self.read_etdata_from_bucket()
+        # Sanity checks
 
-        if geojson_data is None:
-            geojson_data = self.read_geodata_from_bucket()
-
-        # Set the user ids associated with this feature_collection
-        user_ids_for_featColl = config.statics["feature_collections"][self.feature_collection]["users"]
-
-        # Check if database is empty
+        #1.  Check if database is empty
         # If not empty, we need to check if entries are already in db
         db_empty = False
         try:
@@ -574,13 +601,30 @@ class database_Util(object):
             db_empty = True
             # db_empty = self.database_is_empty()
 
-
-
         if db_empty:
             # Set up feature_collection, model, parameter and variable tables
             print("Database empty, setting up basic data tables")
             self.set_base_database_tables(session)
 
+        # 2. check if the features are already in there
+        if self.feature_collection_changing_by_year:
+            feature_year = self.year
+        else:
+            feature_year = 9999
+        features_in_db = self.check_if_features_in_db(self.feature_collection, feature_year, session)
+        if features_in_db:
+            print('Data for feature_collection/year ' + self.feature_collection + ' already in database. Exciting')
+            sys.exit(0)
+
+        # Read etdata from bucket
+        if etdata is None:
+            etdata = self.read_etdata_from_bucket()
+
+        if geojson_data is None:
+            geojson_data = self.read_geodata_from_bucket()
+
+        # Set the user ids associated with this feature_collection
+        user_ids_for_featColl = config.statics["feature_collections"][self.feature_collection]["users"]
 
         # Loop over features in bucket file, do in chunks
         # Oherwise we get a kill9 error
@@ -601,11 +645,10 @@ class database_Util(object):
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
         cursor.execute("SET search_path TO myschema," + schema + ", public")
 
-        # FIXME: these should not be hardcoded here
-        permission = "public"
+        permission = config.statics['feature_collections'][self.feature_collection]['permission']
         last_timeseries_update = dt.datetime.today()
-        report_id = 0
-        timeseries_id = 0
+        timeseries_id = self.get_last_timeseries_id(session)
+
         while chunk <= num_chunks:
             csv_metadata = open("metadata.csv", "wb+")
             csv_data = open("data.csv", "wb+")
@@ -619,15 +662,11 @@ class database_Util(object):
             if idx_end > len(etdata["features"]):
                 idx_end = len(etdata["features"])
 
+            # loop over features in chunk
             for f_idx in range(idx_start, idx_end):
                 feat_idx = f_idx +1
-                print("Adding Feature "  + str(f_idx + 1))
                 # Feature table
                 # check if the feature is already in the database
-                if self.feature_collection_changing_by_year:
-                    year = self.year
-                else:
-                    year = 9999
                 g_data = geojson_data["features"][f_idx]
                 # Set the feature_id_from_user
                 if "feature_id_from_user" in g_data["properties"].keys():
@@ -635,16 +674,20 @@ class database_Util(object):
                 else:
                     feature_id_from_user = str(feat_idx)
 
+
                 # Check if feature is in db
-                feature_id = self.check_if_feature_in_db(self.feature_collection, str(feat_idx), year, session)
+                feature_id = self.check_if_feature_in_db(self.feature_collection, feature_id_from_user, feature_year, session)
+
                 # Check if  data is in db
-                data_in_db = self.check_if_data_in_db(feature_id)
+                data_in_db = self.check_if_data_in_db(feature_id, session)
 
                 if feature_id and data_in_db:
-                    print("Data for feature_id/year " + str(feature_id) + "/" + str(self.year) + " found in db. Skipping...")
+                    print("Data for feature_id/year " + str(feature_id) + "/" + str(self.feature_year) + " found in db. Skipping...")
                     continue
 
+                uid_feat_pairs = []
                 if not feature_id:
+                    print("Adding Feature " + str(f_idx + 1))
                     # Convert the geojson geometry to postgis geometry using shapely
                     # Note: we convert polygons to multi polygon
                     # Convert to shapely shape
@@ -653,7 +696,7 @@ class database_Util(object):
                     if postgis_geom is None:
                         raise Exception("Not a valid geometry, must be polygon or multi polygon!")
                     # Add the feature table entry for this feature and obtain the feature_id
-                    feature = self.set_feature_entity(feature_id_from_user, shapely_geom.geom_type, postgis_geom, year)
+                    feature = self.set_feature_entity(feature_id_from_user, shapely_geom.geom_type, postgis_geom, feature_year)
                     # Submit the feature table to obtain the primary key feature_id
                     self.add_entity_to_db(session, feature)
                     # Get the feature primary key from db
@@ -661,7 +704,6 @@ class database_Util(object):
                     logging.info("Added Feature Table")
                     # Add the many-to-many relationship between user and feature
                     # (user_id, feature_id pairs)
-                    uid_feat_pairs = []
                     for user_id in user_ids_for_featColl:
                         uid_feat_pairs.append((user_id, feature_id))
                 else:
@@ -698,13 +740,12 @@ class database_Util(object):
 
                             row = [timeseries_id, start_date_dt, end_date_dt, data_value]
                             csv_ts_writer.writerow(row)
-                            # row = [feature_id, user_id, timeseries_id, report_id, self.model, var, t_res, permission, last_timeseries_update]
                             row = [feature_id, user_id, timeseries_id, self.model, var, t_res, permission, last_timeseries_update]
                             csv_data_writer.writerow(row)
 
-
-            session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
-            print("Added FeatureUserLink Table")
+            if uid_feat_pairs:
+                session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
+                print("Added FeatureUserLink Table")
 
             csv_metadata.close()
             csv_timeseries.close()
@@ -877,23 +918,6 @@ class query_Util(object):
             # FIXME: need to write this function
             # https://docs.sqlalchemy.org/en/latest/core/functions.html
             return temp_data_col
-
-    def check_if_data_in_db(self, feature_id):
-        sql = sqa.text("""
-            SELECT
-            roses.timeseries.data_value as data_value,
-            FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-
-            WHERE
-            roses.data.feature_id = %i 
-        """ % (feature_id))
-        query_data = self.conn.execute(sql)
-        if query_data:
-            return True
-        else:
-            return False
 
     def test(self):
         sql = sqa.text("""

@@ -1,6 +1,6 @@
 {
-  "ingest_chunk_size": 1000,
-  "regions": [
+  "ingest_chunk_size": 50,
+  "feature_collection_list": [
     "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
     "BRC_Combined_subset_2009",
     "WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
@@ -10,6 +10,7 @@
   "feature_collections": {
     "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset": {
       "users": [0],
+      "permission": "public",
       "metadata": ["OBJECTID", "BASIN"],
       "feature_collection_name": "/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
       "feature_collection_permission": "public",
@@ -17,6 +18,7 @@
     },
     "BRC_Combined_subset_2009": {
       "users": [0],
+      "permission": "public",
       "metadata": ["OBJECTID"],
       "feature_collection_name": "/projects/nasa-roses/BRC_Combined_subset_2009",
       "feature_collection_permission": "public",
@@ -24,6 +26,7 @@
     },
     "WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr": {
       "users": [0],
+      "permission": "public",
       "metadata": [],
       "feature_collection_name": "/projects/nasa-roses/WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
       "feature_collection_permission": "public",
@@ -31,6 +34,7 @@
     },
     "usgs_central_valley_mod_base15_ca_poly_170616": {
       "users": [0],
+      "permission": "public",
       "metadata": ["BASIN"],
       "feature_collection_name": "/projects/nasa-roses/sgs_central_valley_mod_base15_ca_poly_170616",
       "feature_collection_permission": "public",
@@ -38,6 +42,7 @@
     },
     "paso_robles_base15_ca_poly_170616": {
       "users": [0],
+      "permission": "public",
       "metadata": ["COUNTY", "SimsID"],
       "feature_collection_name": "/projects/nasa-roses/paso_robles_base15_ca_poly_170616",
       "feature_collection_permission": "public",
@@ -80,7 +85,7 @@
     "ssebop": {
       "model_id": 1,
       "model_name": "ssebop",
-      "variables": ["et", "etnet"],
+      "variables": ["et", "eto", "etr", "ndvi"],
       "valid_year_range": ["2003", "2011"],
       "ee_collection": "projects/usgs-ssebop/et/conus/monthly/v0",
       "model_collection": "1",
@@ -93,21 +98,31 @@
       "variable_name": "et",
       "units": "mm"
     },
-    "etnet": {
+    "eto": {
       "variabel_id": 2,
-      "variable_name": "etnet",
+      "variable_name": "eto",
       "units": "mm"
+    },
+     "etr": {
+      "variabel_id": 1,
+      "variable_name": "etr",
+      "units": "mm"
+    },
+    "ndvi": {
+      "variabel_id": 2,
+      "variable_name": "ndvi",
+      "units": ""
     }
   },
   "parameters": {
     "ssebop": {
       "et": {
       },
-      "etnet": {
+      "etr": {
       },
-     "ndvi": {
+     "eto": {
       },
-      "ppt": {
+      "ndvi": {
       }
     }
   },
