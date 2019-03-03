@@ -13,14 +13,17 @@
       "permission": "public",
       "metadata": ["OBJECTID", "BASIN"],
       "feature_collection_name": "/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
+      "num_features": 4402,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
     },
     "BRC_Combined_subset_2009": {
       "users": [0],
+      "num_features": 37950,
       "permission": "public",
       "metadata": ["OBJECTID"],
       "feature_collection_name": "/projects/nasa-roses/BRC_Combined_subset_2009",
+      "num_features": 37950,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
     },
@@ -29,6 +32,7 @@
       "permission": "public",
       "metadata": [],
       "feature_collection_name": "/projects/nasa-roses/WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
+      "num_features": 1784,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
     },
@@ -37,6 +41,7 @@
       "permission": "public",
       "metadata": ["BASIN"],
       "feature_collection_name": "/projects/nasa-roses/sgs_central_valley_mod_base15_ca_poly_170616",
+      "num_features": 229911,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
     },
@@ -45,6 +50,7 @@
       "permission": "public",
       "metadata": ["COUNTY", "SimsID"],
       "feature_collection_name": "/projects/nasa-roses/paso_robles_base15_ca_poly_170616",
+      "num_features": 8122,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
     }

@@ -6,7 +6,8 @@ import urllib2
 import copy
 import subprocess
 import csv
-
+import geojson
+import numpy as np
 
 import sqlalchemy as db
 from sqlalchemy.orm import session as session_module
@@ -14,25 +15,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import inspect
 from shapely.geometry import asShape
-from sqlalchemy import DDL
-from sqlalchemy import event
 from shapely.geometry.multipolygon import MultiPolygon
 from geoalchemy2.shape import from_shape, to_shape
 from geoalchemy2.types import Geometry
-
 import sqlalchemy.sql as sqa
 
-'''
-from sqlalchemy.sql import expression as expr
-# from sqlalchemy.sql import select, and_, or_, not_
-from sqlalchemy.sql import func, asc, desc, text
-'''
-
-import geojson
-import numpy as np
 import config
-
-
 from populate_db import SCHEMA as schema
 from populate_db import GEO_BUCKET_URL, DATA_BUCKET_URL
 
@@ -40,16 +28,17 @@ from populate_db import GEO_BUCKET_URL, DATA_BUCKET_URL
 # OpenET database tables
 #######################################
 Base = declarative_base()
-# schema = config.NASA_ROSES_SCHEMA
-
 Base.metadata = db.MetaData(schema=schema)
-
 #event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
 
 # Many-to_many
 FeatureUserLink = db.Table("feature_user_link", Base.metadata,
-    db.Column("user_id", db.Integer, db.ForeignKey("user.user_id", ondelete="cascade", onupdate="cascade")),
-    db.Column("feature_id", db.Integer, db.ForeignKey("feature.feature_id", ondelete="cascade", onupdate="cascade"))
+    db.Column(
+        "user_id", db.Integer, db.ForeignKey("user.user_id", ondelete="cascade", onupdate="cascade")
+    ),
+    db.Column(
+        "feature_id", db.Integer, db.ForeignKey("feature.feature_id", ondelete="cascade", onupdate="cascade")
+    )
 )
 
 # FIXME: mssing tables: Report, Parameters, commented out below
@@ -76,7 +65,10 @@ class ModelMetadata(Base):
     model_metadata_name = db.Column(db.String())
     model_metadata_properties = db.Column(db.String())
 
-    model = relationship("Model", back_populates="model_metadata", cascade="save-update, merge, delete", foreign_keys="ModelMetadata.model_name")
+    model = relationship(
+        "Model", back_populates="model_metadata", cascade="save-update, merge, delete",
+        foreign_keys="ModelMetadata.model_name"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -96,8 +88,12 @@ class User(Base):
     role = db.Column(db.String())
 
 
-    data = relationship("Data", back_populates="user", cascade="save-update, merge, delete")
-    feature_collections = relationship("FeatureCollection", back_populates="users", cascade="save-update, merge, delete")
+    data = relationship(
+        "Data", back_populates="user", cascade="save-update, merge, delete"
+    )
+    feature_collections = relationship(
+        "FeatureCollection", back_populates="users", cascade="save-update, merge, delete"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -111,8 +107,13 @@ class FeatureCollection(Base):
     feature_collection_permission = db.Column(db.String())
     url_path_to_shapefile = db.Column(db.String())
 
-    users = relationship("User", back_populates="feature_collections",cascade="save-update, merge, delete", foreign_keys="FeatureCollection.user_id")
-    features = relationship("Feature", back_populates="feature_collections",cascade="save-update, merge, delete")
+    users = relationship(
+        "User", back_populates="feature_collections",cascade="save-update, merge, delete",
+        foreign_keys="FeatureCollection.user_id"
+    )
+    features = relationship(
+        "Feature", back_populates="feature_collections",cascade="save-update, merge, delete"
+    )
 
 
 class Feature(Base):
@@ -125,9 +126,16 @@ class Feature(Base):
     year = db.Column(db.Integer())
     geometry = db.Column(Geometry(geometry_type="MULTIPOLYGON"))
 
-    feature_collections = relationship("FeatureCollection", back_populates="features", cascade="save-update, merge, delete", foreign_keys="Feature.feature_collection_name")
-    data = relationship("Data", back_populates="feature", cascade="save-update, merge, delete")
-    feature_metadata = relationship("FeatureMetadata", back_populates="feature", cascade="save-update, merge, delete")
+    feature_collections = relationship(
+        "FeatureCollection", back_populates="features", cascade="save-update, merge, delete",
+        foreign_keys="Feature.feature_collection_name"
+    )
+    data = relationship(
+        "Data", back_populates="feature", cascade="save-update, merge, delete"
+    )
+    feature_metadata = relationship(
+        "FeatureMetadata", back_populates="feature", cascade="save-update, merge, delete"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -140,7 +148,10 @@ class FeatureMetadata(Base):
     feature_metadata_name = db.Column(db.String())
     feature_metadata_properties = db.Column(db.String())
 
-    feature = relationship("Feature", back_populates="feature_metadata", cascade="save-update, merge, delete", foreign_keys="FeatureMetadata.feature_id")
+    feature = relationship(
+        "Feature", back_populates="feature_metadata", cascade="save-update, merge, delete",
+        foreign_keys="FeatureMetadata.feature_id"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -153,7 +164,9 @@ class Variable(Base):
     variable_name = db.Column(db.String(), unique=True, index=True)
     units = db.Column(db.String())
 
-    data = relationship("Data", back_populates="variable", cascade="save-update, merge, delete")
+    data = relationship(
+        "Data", back_populates="variable", cascade="save-update, merge, delete"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -173,12 +186,24 @@ class Data(Base):
     permission = db.Column(db.String())
     last_timeseries_update = db.Column(db.DateTime())
 
-    feature = relationship("Feature", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.feature_id")
-    user = relationship("User", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.user_id")
-    timeseries = relationship("Timeseries", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.timeseries_id")
-    # report = relationship("Report", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.report_id")
-    model = relationship("Model", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.model_name")
-    variable = relationship("Variable", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.variable_name")
+    feature = relationship(
+        "Feature", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.feature_id"
+    )
+    user = relationship(
+        "User", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.user_id"
+    )
+    timeseries = relationship(
+        "Timeseries", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.timeseries_id"
+    )
+    # report = relationship(
+    # "Report", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.report_id"
+    # )
+    model = relationship(
+        "Model", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.model_name"
+    )
+    variable = relationship(
+        "Variable", back_populates="data", cascade="save-update, merge, delete", foreign_keys="Data.variable_name"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -191,7 +216,9 @@ class Timeseries(Base):
     end_date = db.Column(db.DateTime())
     data_value = db.Column(db.Float(precision=4))
 
-    data = relationship("Data", back_populates="timeseries", cascade="save-update, merge, delete")
+    data = relationship(
+        "Data", back_populates="timeseries", cascade="save-update, merge, delete"
+    )
 
 """
 class Parameters(Base):
@@ -203,8 +230,12 @@ class Parameters(Base):
     parameter_name =  db.Column(db.String())
     parameter_properties = db.Column(db.String())
 
-    model = relationship("Model", back_populates="parameters", cascade="save-update, merge, delete", foreign_keys="Parameters.model_name")
-    variable = relationship("Variable", back_populates="parameters", cascade="save-update, merge, delete", foreign_keys="Parameters.variable_name")
+    model = relationship(
+        "Model", back_populates="parameters", cascade="save-update, merge, delete", foreign_keys="Parameters.model_name"
+    )
+    variable = relationship(
+        "Variable", back_populates="parameters", cascade="save-update, merge, delete", foreign_keys="Parameters.variable_name"
+    )
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -338,15 +369,12 @@ class database_Util(object):
         """
         url = self.data_bucket_url + self.model + "/" + self.dataFName
         d = json.load(urllib2.urlopen(url))
-        print("Reading data from bucket file " + url)
-        """
         try:
             d = json.load(urllib2.urlopen(url))
             print("Read data from bucket file " + url)
         except Exception as e:
             logging.error(e)
             raise Exception(e)
-        """
         return d
 
     def add_in_chunks(self, entity_list, session):
@@ -387,10 +415,13 @@ class database_Util(object):
 
     def check_if_features_in_db(self, feature_collection, feature_year, session):
         coll_name = config.statics["feature_collections"][feature_collection]["feature_collection_name"]
+        num_features = config.statics["feature_collections"][feature_collection]["num_features"]
         feature_query = session.query(Feature).filter(
             Feature.feature_collection_name == coll_name,
             Feature.year == feature_year
         )
+        cnt = feature_query.count()
+        '''
         try:
             d = self.object_as_dict(feature_query.first())
             if d:
@@ -399,9 +430,14 @@ class database_Util(object):
                 return False
         except:
             return False
+        '''
+
+        if cnt == num_features:
+            return True
+        else:
+            return False
 
     def check_if_data_in_db(self, feature_id, session):
-        # Check if this entry is already in db
         in_db =  False
         if feature_id is None:
             return in_db
@@ -558,6 +594,7 @@ class database_Util(object):
             del coll_dict["metadata"]
             users = coll_dict["users"]
             del coll_dict["users"]
+            del coll_dict["num_features"]
             del coll_dict['permission']
             for user in users:
                 init_dict = copy.deepcopy(coll_dict)
@@ -682,7 +719,8 @@ class database_Util(object):
                 data_in_db = self.check_if_data_in_db(feature_id, session)
 
                 if feature_id and data_in_db:
-                    print("Data for feature_id/year " + str(feature_id) + "/" + str(self.feature_year) + " found in db. Skipping...")
+                    print("Data for feature_id/year " + str(feature_id) + "/" + str(self.feature_year) +
+                          " found in db. Skipping...")
                     continue
 
                 uid_feat_pairs = []
@@ -740,7 +778,8 @@ class database_Util(object):
 
                             row = [timeseries_id, start_date_dt, end_date_dt, data_value]
                             csv_ts_writer.writerow(row)
-                            row = [feature_id, user_id, timeseries_id, self.model, var, t_res, permission, last_timeseries_update]
+                            row = [feature_id, user_id, timeseries_id, self.model, var, t_res,
+                                   permission, last_timeseries_update]
                             csv_data_writer.writerow(row)
 
             if uid_feat_pairs:
@@ -979,7 +1018,7 @@ class query_Util(object):
             FROM
             roses.timeseries
             LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-        
+
             WHERE
             roses.data.feature_id = '%s'
             AND roses.timeseries.start_date >= '%s'::timestamp
@@ -1076,7 +1115,7 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id AS feat_id, 
+            roses.feature.feature_id AS feat_id,
             roses.timeseries.start_date AS sd,
             roses.timeseries.end_date AS ed,
             roses.timeseries.data_value AS dv
@@ -1129,7 +1168,7 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id, 
+            roses.feature.feature_id as feat_id,
             %s
             FROM
             roses.timeseries
@@ -1245,7 +1284,7 @@ class query_Util(object):
             LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
             LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
             LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
-            
+
             WHERE
             roses.feature.feature_collection_name = '%s'
             AND roses.feature_metadata.feature_metadata_name = '%s'
@@ -1296,11 +1335,11 @@ class query_Util(object):
             roses.timeseries.data_value AS dv
             FROM
             roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id 
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
             LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s' 
+            roses.feature.feature_collection_name = '%s'
             AND roses.timeseries.start_date >= '%s'::timestamp
             AND roses.timeseries.end_date <= '%s'::timestamp
             AND roses.data.user_id = 0
@@ -1366,11 +1405,11 @@ class query_Util(object):
             %s
             FROM
             roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id 
+            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
             LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s' 
+            roses.feature.feature_collection_name = '%s'
             AND roses.timeseries.start_date >= '%s'::timestamp
             AND roses.timeseries.end_date <= '%s'::timestamp
             AND roses.data.user_id = 0
@@ -1538,7 +1577,7 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id, 
+            roses.feature.feature_id as feat_id,
             roses.timeseries.start_date AS sd,
             roses.timeseries.end_date AS ed,
             roses.timeseries.data_value AS dv
@@ -1597,7 +1636,7 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id, 
+            roses.feature.feature_id as feat_id,
             %s
             FROM
             roses.timeseries

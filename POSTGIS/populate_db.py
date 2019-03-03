@@ -24,10 +24,8 @@ if __name__ == '__main__':
     # db_methods.Base.metadata.bind = engine
 
     # NOTE: comment this out if you don't want to delete and repopuate everything
-    '''
     db_methods.Base.metadata.drop_all(engine)
     db_methods.Base.metadata.create_all(engine)
-    '''
 
     start_time = time.time()
 
@@ -38,7 +36,7 @@ if __name__ == '__main__':
 
     # print(Base.metadata.sorted_tables)
     user_id = 0
-    for feat_coll in config.statics['feature_collection_list'][2:3]:
+    for feat_coll in config.statics['feature_collection_list'][1:2]:
         geom_change_by_year = False
         if feat_coll in config.statics['feature_collections_changing_by_year']:
             geom_change_by_year = True
@@ -55,7 +53,7 @@ if __name__ == '__main__':
                 session.execute("SET search_path TO " + SCHEMA + ', public')
                 DB_Util.add_data_to_db(session, user_id=user_id, etdata=etdata, geojson_data=geojson_data)
                 session.close()
-    
+
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
