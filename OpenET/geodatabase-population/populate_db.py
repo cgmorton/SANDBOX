@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
     # print(Base.metadata.sorted_tables)
     user_id = 0
-    for feat_coll in config.statics['feature_collection_list'][1:2]:
+    for feat_coll in [config.statics['feature_collection_list'][0], config.statics['feature_collection_list'][2], config.statics['feature_collection_list'][4]]:
         geom_change_by_year = False
         if feat_coll in config.statics['feature_collections_changing_by_year']:
             geom_change_by_year = True
