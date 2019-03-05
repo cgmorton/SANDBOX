@@ -21,15 +21,15 @@ from geoalchemy2.types import Geometry
 import sqlalchemy.sql as sqa
 
 import config
-from populate_db import SCHEMA as schema
+from populate_db import SCHEMA 
 from populate_db import GEO_BUCKET_URL, DATA_BUCKET_URL
 
 #######################################
 # OpenET database tables
 #######################################
 Base = declarative_base()
-Base.metadata = db.MetaData(schema=schema)
-#event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + schema))
+Base.metadata = db.MetaData(schema=SCHEMA)
+#event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + SCHEMA))
 
 # Many-to_many
 FeatureUserLink = db.Table("feature_user_link", Base.metadata,
@@ -44,7 +44,7 @@ FeatureUserLink = db.Table("feature_user_link", Base.metadata,
 # FIXME: mssing tables: Report, Parameters, commented out below
 class Model(Base):
     __tablename__ = "model"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     model_id = db.Column(db.Integer(), primary_key=True)
     model_name = db.Column(db.String(), unique=True, index=True)
     ee_collection_name = db.Column(db.String())
@@ -59,9 +59,9 @@ class Model(Base):
 
 class ModelMetadata(Base):
     __tablename__ = "model_metadata"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     model_metadata_id = db.Column(db.Integer(), primary_key=True)
-    model_name = db.Column(db.String(), db.ForeignKey(schema + "." + "model.model_name"), index=True, nullable=False)
+    model_name = db.Column(db.String(), db.ForeignKey(SCHEMA + "." + "model.model_name"), index=True, nullable=False)
     model_metadata_name = db.Column(db.String())
     model_metadata_properties = db.Column(db.String())
 
@@ -76,7 +76,7 @@ class ModelMetadata(Base):
 
 class User(Base):
     __tablename__ = "user"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     user_id = db.Column(db.Integer(), primary_key=True)
     user_name = db.Column(db.String())
     user_email = db.Column(db.String())
@@ -100,10 +100,10 @@ class User(Base):
 
 class FeatureCollection(Base):
     __tablename__ = "feature_collection"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     feature_collection_id = db.Column(db.Integer(), primary_key=True)
     feature_collection_name =  db.Column(db.String(), unique=True, index=True, nullable=False)
-    user_id =  db.Column(db.Integer(), db.ForeignKey(schema + "." + "user.user_id"), nullable=False)
+    user_id =  db.Column(db.Integer(), db.ForeignKey(SCHEMA + "." + "user.user_id"), nullable=False)
     feature_collection_permission = db.Column(db.String())
     url_path_to_shapefile = db.Column(db.String())
 
@@ -118,9 +118,9 @@ class FeatureCollection(Base):
 
 class Feature(Base):
     __tablename__ = "feature"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     feature_id = db.Column(db.Integer(), primary_key=True)
-    feature_collection_name = db.Column(db.String(), db.ForeignKey(schema + "." + "feature_collection.feature_collection_name"), index=True, nullable=False)
+    feature_collection_name = db.Column(db.String(), db.ForeignKey(SCHEMA + "." + "feature_collection.feature_collection_name"), index=True, nullable=False)
     feature_id_from_user = db.Column(db.String())
     type = db.Column(db.String())
     year = db.Column(db.Integer())
@@ -142,9 +142,9 @@ class Feature(Base):
 
 class FeatureMetadata(Base):
     __tablename__ = "feature_metadata"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     feature_metadata_id = db.Column(db.Integer(), primary_key=True)
-    feature_id = db.Column(db.Integer(), db.ForeignKey(schema + "." + "feature.feature_id"), nullable=False)
+    feature_id = db.Column(db.Integer(), db.ForeignKey(SCHEMA + "." + "feature.feature_id"), nullable=False)
     feature_metadata_name = db.Column(db.String())
     feature_metadata_properties = db.Column(db.String())
 
@@ -159,7 +159,7 @@ class FeatureMetadata(Base):
 
 class Variable(Base):
     __tablename__ = "variable"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     variable_id = db.Column(db.Integer(), primary_key=True)
     variable_name = db.Column(db.String(), unique=True, index=True)
     units = db.Column(db.String())
@@ -174,14 +174,14 @@ class Variable(Base):
 
 class Data(Base):
     __tablename__ = "data"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     data_id = db.Column(db.Integer(), primary_key=True)
-    feature_id = db.Column(db.Integer(), db.ForeignKey(schema + "." + "feature.feature_id"), nullable=False)
-    user_id =  db.Column(db.Integer(), db.ForeignKey(schema + "." + "user.user_id"), nullable=False)
-    timeseries_id = db.Column(db.Integer(), db.ForeignKey(schema + "." + "timeseries.timeseries_id"), nullable=False)
-    # report_id  = db.Column(db.Integer(), db.ForeignKey(schema + "." + "report.report_id"))
-    model_name =  db.Column(db.String(), db.ForeignKey(schema + "." + "model.model_name"), index=True, nullable=False)
-    variable_name =  db.Column(db.String(), db.ForeignKey(schema + "." + "variable.variable_name"), index=True, nullable=False)
+    feature_id = db.Column(db.Integer(), db.ForeignKey(SCHEMA + "." + "feature.feature_id"), nullable=False)
+    user_id =  db.Column(db.Integer(), db.ForeignKey(SCHEMA + "." + "user.user_id"), nullable=False)
+    timeseries_id = db.Column(db.Integer(), db.ForeignKey(SCHEMA + "." + "timeseries.timeseries_id"), nullable=False)
+    # report_id  = db.Column(db.Integer(), db.ForeignKey(SCHEMA + "." + "report.report_id"))
+    model_name =  db.Column(db.String(), db.ForeignKey(SCHEMA + "." + "model.model_name"), index=True, nullable=False)
+    variable_name =  db.Column(db.String(), db.ForeignKey(SCHEMA + "." + "variable.variable_name"), index=True, nullable=False)
     temporal_resolution = db.Column(db.String())
     permission = db.Column(db.String())
     last_timeseries_update = db.Column(db.DateTime())
@@ -210,7 +210,7 @@ class Data(Base):
 
 class Timeseries(Base):
     __tablename__ = "timeseries"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     timeseries_id = db.Column(db.Integer(), primary_key=True)
     start_date = db.Column(db.DateTime())
     end_date = db.Column(db.DateTime())
@@ -223,10 +223,10 @@ class Timeseries(Base):
 """
 class Parameters(Base):
     __tablename__ = "parameter"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     parameter_id = db.Column(db.Integer(), primary_key=True)
-    variable_name = db.Column(db.String(), db.ForeignKey(schema + "."  + "variable.variable_name"), index=True, nullable=False)
-    model_name = db.Column(db.String(), db.ForeignKey(schema + "."  + "model.model_name"), index=True, nullable=False)
+    variable_name = db.Column(db.String(), db.ForeignKey(SCHEMA + "."  + "variable.variable_name"), index=True, nullable=False)
+    model_name = db.Column(db.String(), db.ForeignKey(SCHEMA + "."  + "model.model_name"), index=True, nullable=False)
     parameter_name =  db.Column(db.String())
     parameter_properties = db.Column(db.String())
 
@@ -243,7 +243,7 @@ class Parameters(Base):
 
 class Report(Base):
     __tablename__ = "report"
-    __table_args__ = {"schema": schema}
+    __table_args__ = {"schema": SCHEMA}
     report_id = db.Column(db.Integer(), primary_key=True)
 """
 
@@ -680,7 +680,7 @@ class database_Util(object):
         conn = session.connection()  # SQLAlchemy Connection
         dbapi_conn = conn.connection  # DBAPI connection (technically a connection pool wrapper called ConnectionFairy, but everything is there)
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
-        cursor.execute("SET search_path TO myschema," + schema + ", public")
+        cursor.execute("SET search_path TO " + SCHEMA + ", public")
 
         permission = config.statics['feature_collections'][self.feature_collection]['permission']
         last_timeseries_update = dt.datetime.today()
@@ -903,7 +903,7 @@ class query_Util(object):
     Class to support API queries
     """
 
-    def __init__(self, model, variable, user_id, temporal_resolution, engine):
+    def __init__(self, model, variable, user_id, temporal_resolution, engine, schema):
         self.model = model
         self.variable = variable
         self.user_id = user_id
@@ -958,30 +958,6 @@ class query_Util(object):
             # https://docs.sqlalchemy.org/en/latest/core/functions.html
             return temp_data_col
 
-    def test(self):
-        sql = sqa.text("""
-            SELECT
-            count(roses.timeseries.data_value) AS the_count,
-            AVG(roses.timeseries.data_value) AS avg_1
-            FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
-
-            WHERE
-            roses.feature.feature_collection_name = '/projects/nasa-roses/BRC_Combined_subset_2009'
-            AND roses.timeseries.start_date >= '2003-01-01T00:00:00'::timestamp
-            AND roses.timeseries.end_date <= '2003-12-31T00:00:00'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = 'ssebop'
-            AND roses.data.variable_name = 'et'
-            AND roses.data.temporal_resolution = 'monthly'
-            GROUP BY roses.feature.feature_id
-        """)
-        query_data = self.conn.execute(sql)
-        for qd in query_data:
-            print(qd)
-
 
     def api_ex1_raw(self, **params):
         """
@@ -1011,22 +987,22 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.data.feature_id AS feat_id,
-            roses.timeseries.start_date AS sd,
-            roses.timeseries.end_date AS ed,
-            roses.timeseries.data_value AS dv
+            data.feature_id AS feat_id,
+            timeseries.start_date AS sd,
+            timeseries.end_date AS ed,
+            timeseries.data_value AS dv
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
 
             WHERE
-            roses.data.feature_id = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
+            data.feature_id = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
         """ %(fid, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1065,21 +1041,21 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.data.feature_id as feat_id,
+            data.feature_id as feat_id,
             %s
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
 
             WHERE
-            roses.data.feature_id = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            GROUP BY roses.data.feature_id
+            data.feature_id = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            GROUP BY data.feature_id
         """ % (data_col, fid, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1115,24 +1091,24 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id AS feat_id,
-            roses.timeseries.start_date AS sd,
-            roses.timeseries.end_date AS ed,
-            roses.timeseries.data_value AS dv
+            feature.feature_id AS feat_id,
+            timeseries.start_date AS sd,
+            timeseries.end_date AS ed,
+            timeseries.data_value AS dv
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            ORDER BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            ORDER BY feature.feature_id
         """ %(fc, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1168,22 +1144,22 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
+            feature.feature_id as feat_id,
             %s
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            GROUP BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            GROUP BY feature.feature_id
         """ %(data_col, fc, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1220,26 +1196,26 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
+            feature.feature_id as feat_id,
             timeseries.start_date,
             timeseries.end_date,
             timeseries.data_value
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature_metadata ON feature_metadata.feature_id = data.feature_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.feature_metadata.feature_metadata_name = '%s'
-            AND roses.feature_metadata.feature_metadata_properties = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
+            feature.feature_collection_name = '%s'
+            AND feature_metadata.feature_metadata_name = '%s'
+            AND feature_metadata.feature_metadata_properties = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
         """ % (fc, fmn, fmp, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1277,25 +1253,25 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
+            feature.feature_id as feat_id,
             %s
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature_metadata ON feature_metadata.feature_id = data.feature_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.feature_metadata.feature_metadata_name = '%s'
-            AND roses.feature_metadata.feature_metadata_properties = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            GROUP BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND feature_metadata.feature_metadata_name = '%s'
+            AND feature_metadata.feature_metadata_properties = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            GROUP BY feature.feature_id
         """ % (data_col, fc, fmn, fmp, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1328,25 +1304,25 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id AS feat_id,
-            ST_AREA(roses.feature.geometry) AS geom,
-            roses.timeseries.start_date AS sd,
-            roses.timeseries.end_date AS ed,
-            roses.timeseries.data_value AS dv
+            feature.feature_id AS feat_id,
+            ST_AREA(feature.geometry) AS geom,
+            timeseries.start_date AS sd,
+            timeseries.end_date AS ed,
+            timeseries.data_value AS dv
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            ORDER BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            ORDER BY feature.feature_id
         """ % (fc, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         # Get the area average
@@ -1401,35 +1377,38 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            ST_AREA(roses.feature.geometry),
+            ST_AREA(feature.geometry),
             %s
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            GROUP BY roses.feature.geometry
+            feature.feature_collection_name = '%s'
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            GROUP BY feature.geometry
         """ % (data_col, fc, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         # Get the area average
-        data = []
         summ = 0
         total_area = 0
         num_feats = 0
         for qd in query_data:
+            print(qd)
             summ += qd[0] * qd[1]
             num_feats +=1
             total_area += qd[0]
-        # data = round((1.0 / (total_area * num_feats)) * summ, 4)
-        data = round((1.0 / total_area) * summ, 4)
+        data = []
+        if total_area > 0:
+            data = round((1.0 / total_area) * summ, 4)
+        else:
+            data = 'ERROR: query returned no data'
         j_data = copy.deepcopy(self.json_data)
         j_data['properties'].update(params)
         j_data['properties']['format'] = ['Area Averaged Data Value']
@@ -1462,27 +1441,27 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
-            roses.timeseries.start_date AS sd,
-            roses.timeseries.end_date AS ed,
-            roses.timeseries.data_value AS dv
+            feature.feature_id as feat_id,
+            timeseries.start_date AS sd,
+            timeseries.end_date AS ed,
+            timeseries.data_value AS dv
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature_metadata ON feature_metadata.feature_id = data.feature_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.feature_metadata.feature_metadata_name = '%s'
-            AND roses.feature_metadata.feature_metadata_properties IN %s
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            ORDER BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND feature_metadata.feature_metadata_name = '%s'
+            AND feature_metadata.feature_metadata_properties IN %s
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            ORDER BY feature.feature_id
         """ % (fc, fmn, fmp, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1520,25 +1499,25 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
+            feature.feature_id as feat_id,
             %s
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature_metadata ON roses.feature_metadata.feature_id = roses.data.feature_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature_metadata ON feature_metadata.feature_id = data.feature_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND roses.feature_metadata.feature_metadata_name = '%s'
-            AND roses.feature_metadata.feature_metadata_properties IN %s
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            GROUP BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND feature_metadata.feature_metadata_name = '%s'
+            AND feature_metadata.feature_metadata_properties IN %s
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            GROUP BY feature.feature_id
         """ % (data_col, fc, fmn, fmp, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1577,25 +1556,25 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
-            roses.timeseries.start_date AS sd,
-            roses.timeseries.end_date AS ed,
-            roses.timeseries.data_value AS dv
+            feature.feature_id as feat_id,
+            timeseries.start_date AS sd,
+            timeseries.end_date AS ed,
+            timeseries.data_value AS dv
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND ST_CONTAINS(ST_GeomFromText('%s'), roses.feature.geometry)
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            ORDER BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND ST_CONTAINS(ST_GeomFromText('%s'), feature.geometry)
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            ORDER BY feature.feature_id
         """ %(fc, sg, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
@@ -1636,24 +1615,24 @@ class query_Util(object):
         ed = params['end_date']
         sql = sqa.text("""
             SELECT
-            roses.feature.feature_id as feat_id,
+            feature.feature_id as feat_id,
             %s
             FROM
-            roses.timeseries
-            LEFT JOIN roses.data ON roses.data.timeseries_id = roses.timeseries.timeseries_id
-            LEFT JOIN roses.feature ON roses.feature.feature_id = roses.data.feature_id
+            timeseries
+            LEFT JOIN data ON data.timeseries_id = timeseries.timeseries_id
+            LEFT JOIN feature ON feature.feature_id = data.feature_id
 
             WHERE
-            roses.feature.feature_collection_name = '%s'
-            AND ST_CONTAINS(ST_GeomFromText('%s'), roses.feature.geometry)
-            AND roses.timeseries.start_date >= '%s'::timestamp
-            AND roses.timeseries.end_date <= '%s'::timestamp
-            AND roses.data.user_id = 0
-            AND roses.data.model_name = '%s'
-            AND roses.data.variable_name = '%s'
-            AND roses.data.temporal_resolution = '%s'
-            GROUP BY roses.feature.feature_id
-            ORDER BY roses.feature.feature_id
+            feature.feature_collection_name = '%s'
+            AND ST_CONTAINS(ST_GeomFromText('%s'), feature.geometry)
+            AND timeseries.start_date >= '%s'::timestamp
+            AND timeseries.end_date <= '%s'::timestamp
+            AND data.user_id = 0
+            AND data.model_name = '%s'
+            AND data.variable_name = '%s'
+            AND data.temporal_resolution = '%s'
+            GROUP BY feature.feature_id
+            ORDER BY feature.feature_id
         """ %(data_col, fc, sg, sd, ed, self.model, self.variable, self.temporal_resolution))
         query_data = self.conn.execute(sql)
         data = [list(qd) for qd in query_data]
