@@ -144,7 +144,7 @@ if __name__ == '__main__':
     year_end_int = int(args.end[0:4])
     # Loop over months in each year
     for yr_int in range(year_start_int, year_end_int + 1):
-        for m_int in range(1, 13):
+        for m_int in range(1, 2):
             # Set start/end date strings for year and month
             sd, ed = set_start_end_date_str(yr_int, m_int)
             # Filter collections by dates
@@ -159,10 +159,11 @@ if __name__ == '__main__':
                     temporal_summary = 'sum'
 
                 ee_img = compute_temporal_summary(ee_coll, temporal_summary)
+                print(ee_img.propertyNames().getInfo())
                 data = compute_zonal_stats(ee_img, coll_name, ee_feat_coll)
                 data = [[d[0], round(d[1], 4), round(d[2], 4)] for d in data if d[2] is not None]
-                print(data)
-                print(sd, ed)
+                # print(data)
+                # print(sd, ed)
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))

@@ -21,7 +21,7 @@ from geoalchemy2.types import Geometry
 import sqlalchemy.sql as sqa
 
 import config
-from populate_db import SCHEMA 
+from populate_db import SCHEMA
 from populate_db import GEO_BUCKET_URL, DATA_BUCKET_URL
 
 #######################################
@@ -1400,7 +1400,6 @@ class query_Util(object):
         total_area = 0
         num_feats = 0
         for qd in query_data:
-            print(qd)
             summ += qd[0] * qd[1]
             num_feats +=1
             total_area += qd[0]
