@@ -16,7 +16,7 @@ def set_start_end_date_str(yr_int, m_int):
     else:
         m_str = str(m_int)
     sd = str(yr_int) + '-' + m_str + '-01'
-    ed = str(yr_int) + '-' + m_str + '-' + str(config.statics['mon_lens'][m_int - 1])
+    ed = str(yr_int) + '-' + m_str + '-' + str(config.statics['mon_len'][m_int - 1])
     '''
     if m_int < 10:
         ed = str(yr_int) + '-' + '0' + str(m_int + 1) + '-01'
@@ -51,8 +51,11 @@ def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
     '''
 
     def set_aadata(feature):
-        unique_col = config.statics['feature_collections'][ee_coll_name]['unique_column']
-        name = feature.get(unique_col)
+        if config.statics['feature_collections'][ee_coll_name]['metadata']:
+            unique_col = config.statics['feature_collections'][ee_coll_name]['metadata'][0]
+            name = feature.get(unique_col)
+        else:
+            name = 'NO NAME'
         area = feature.area()
         mean = feature.get('mean')
         feature = feature.set({'aa_data': [name, area, mean, 4]})

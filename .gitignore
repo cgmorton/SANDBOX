@@ -1,0 +1,41 @@
+# conda install pandas
+n specific
+*.pyc
+
+# Generic files to ignore
+*~
+.cache
+.idea
+*.lock
+*.DS_Store
+*.swp
+*.out
+*.old
+*.notused
+*.bak
+*.pem
+*.p12
+*.json
+
+
+# Shapefiles
+*.prj
+*.shp
+*.shx
+*.dbf
+*.cpg
+*.sbn
+*.sbx
+*.shp.xml
+*.xml
+
+# PyCharm
+.idea
+
+*credentials.json
+*token.json
+*config.py
+clim-engine*.json
+/lib
+/OLD
+
