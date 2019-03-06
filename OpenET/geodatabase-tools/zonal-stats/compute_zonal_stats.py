@@ -5,6 +5,29 @@ import ee
 
 import config
 
+def set_start_end_date_str(yr_int, m_int):
+    '''
+    Set start/end date
+    Note: ee dates are ot inclusive so we need to set end date
+    to the beginning of next months rather than endof this month
+    '''
+    if len(str(m_int)) < 2:
+        m_str = '0' + str(m_int)
+    else:
+        m_str = str(m_int)
+    sd = str(yr_int) + '-' + m_str + '-01'
+    ed = str(yr_int) + '-' + m_str + '-' + str(config.statics['mon_lens'][m_int - 1])
+    '''
+    if m_int < 10:
+        ed = str(yr_int) + '-' + '0' + str(m_int + 1) + '-01'
+    elif m_int >= 10 and m_int < 12:
+        ed = str(yr_int) + '-' + str(m_int + 1) + '-01'
+    else:
+        ed = str(yr_int + 1) + '-01-01'
+    '''
+    return sd, ed
+
+
 def compute_temporal_summary(ee_coll, temporal_summary):
     if temporal_summary == 'mean':
         ee_img = ee_coll.mean()
@@ -30,10 +53,9 @@ def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
     def set_aadata(feature):
         unique_col = config.statics['feature_collections'][ee_coll_name]['unique_column']
         name = feature.get(unique_col)
-        area = round(feature.area(), 4)
+        area = feature.area()
         mean = feature.get('mean')
-        if mean is not None:
-            feature = feature.set({'aa_data': [name, area, mean]})
+        feature = feature.set({'aa_data': [name, area, mean, 4]})
         return feature
 
     # Reduce img over the regions of feat_coll
@@ -60,7 +82,6 @@ def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
 
     ee_reducedFeatColl = ee_reducedFeatColl.map(set_aadata)
     aa_datas = ee_reducedFeatColl.aggregate_array('aa_data').getInfo()
-
     return aa_datas
 
 
@@ -116,19 +137,29 @@ if __name__ == '__main__':
         raise Exception('Feature Collection not found in statics.feature_collections')
         sys.exit(1)
 
-    #FIXME: add a month loop here
-    ee_coll = ee.ImageCollection(args.asset_id).filterDate(args.start + '-01-01', args.end + '-12-31')
-    ee_feat_coll = ee.FeatureCollection(args.feature_collection_id)
-    for var in args.variables:
-        ee_coll = ee_coll.select(var)
-        if var == 'ndvi':
-            temporal_summary = 'mean'
-        else:
-            temporal_summary = 'sum'
+    year_start_int = int(args.start[0:4])
+    year_end_int = int(args.end[0:4])
+    # Loop over months in each year
+    for yr_int in range(year_start_int, year_end_int + 1):
+        for m_int in range(1, 13):
+            # Set start/end date strings for year and month
+            sd, ed = set_start_end_date_str(yr_int, m_int)
+            # Filter collections by dates
+            ee_coll = ee.ImageCollection(args.asset_id).filterDate(sd, ed)
+            ee_feat_coll = ee.FeatureCollection(args.feature_collection_id)
+            for var in args.variables:
+                # Filetr collection by variable
+                ee_coll = ee_coll.select(var)
+                if var == 'ndvi':
+                    temporal_summary = 'mean'
+                else:
+                    temporal_summary = 'sum'
 
-        ee_img = compute_temporal_summary(ee_coll, temporal_summary)
-        data = compute_zonal_stats(ee_img, coll_name, ee_feat_coll)
-        print(data)
+                ee_img = compute_temporal_summary(ee_coll, temporal_summary)
+                data = compute_zonal_stats(ee_img, coll_name, ee_feat_coll)
+                data = [[d[0], round(d[1], 4), round(d[2], 4)] for d in data if d[2] is not None]
+                print(data)
+                print(sd, ed)
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
