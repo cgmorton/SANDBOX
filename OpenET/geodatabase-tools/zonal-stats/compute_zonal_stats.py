@@ -30,7 +30,7 @@ def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
     def set_aadata(feature):
         unique_col = config.statics['feature_collections'][ee_coll_name]['unique_column']
         name = feature.get(unique_col)
-        area = feature.area()
+        area = round(feature.area(), 4)
         mean = feature.get('mean')
         if mean is not None:
             feature = feature.set({'aa_data': [name, area, mean]})
@@ -116,6 +116,7 @@ if __name__ == '__main__':
         raise Exception('Feature Collection not found in statics.feature_collections')
         sys.exit(1)
 
+    #FIXME: add a month loop here
     ee_coll = ee.ImageCollection(args.asset_id).filterDate(args.start + '-01-01', args.end + '-12-31')
     ee_feat_coll = ee.FeatureCollection(args.feature_collection_id)
     for var in args.variables:
