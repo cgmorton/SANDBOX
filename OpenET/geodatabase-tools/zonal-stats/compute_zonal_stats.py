@@ -1,3 +1,4 @@
+import sys, time
 import datetime as dt
 import argparse
 import ee
@@ -15,8 +16,9 @@ def compute_temporal_summary(ee_coll, temporal_summary):
         ee_img = ee_coll.max()
     if temporal_summary == 'median':
         ee_img = ee_coll.median()
+    return ee_img
 
-def compute_zonal_stats(self, ee_img, feat_coll, add_to_db=False):
+def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
     '''
     Apply a reducer over the area of each feature in the given feature collection.
     e.g. fromFT = ee.FeatureCollection('ft:1tdSwUL7MVpOauSgRzqVTOwdfy17KDbw-1d9omPw')
@@ -26,11 +28,12 @@ def compute_zonal_stats(self, ee_img, feat_coll, add_to_db=False):
     '''
 
     def set_aadata(feature):
-        unique_col = config.statics.feature_collections['unique_column']
+        unique_col = config.statics['feature_collections'][ee_coll_name]['unique_column']
         name = feature.get(unique_col)
         area = feature.area()
         mean = feature.get('mean')
-        feature = feature.set({'aa_data': [name, area, mean]})
+        if mean is not None:
+            feature = feature.set({'aa_data': [name, area, mean]})
         return feature
 
     # Reduce img over the regions of feat_coll
@@ -50,7 +53,7 @@ def compute_zonal_stats(self, ee_img, feat_coll, add_to_db=False):
     ee_reducedFeatColl = ee_img.reduceRegions(
         collection=feat_coll,
         reducer=ee.Reducer.mean(),
-        scale=int(self.tv['scale']),
+        scale=250,
         tileScale=1,
         crs='EPSG:4326'
     )
@@ -58,9 +61,6 @@ def compute_zonal_stats(self, ee_img, feat_coll, add_to_db=False):
     ee_reducedFeatColl = ee_reducedFeatColl.map(set_aadata)
     aa_datas = ee_reducedFeatColl.aggregate_array('aa_data').getInfo()
 
-    if add_to_db:
-        # FIXME: call populate_db with arguments
-        msg = 'Succesfullay added data to datastore: ' + str(aa_datas)
     return aa_datas
 
 
@@ -73,38 +73,61 @@ def arg_parse():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(
-        '-assetid', '--asset-id', type=str, required=True,
+        '-ai', '--asset-id', type=str, required=True,
         metavar='Earth Engine asset ID', default='',
         help='Set the asset ID')
 
     parser.add_argument(
-        '-fcollid', '--feature-collection-id', type=str, required=True,
+        '-fi', '--feature-collection-id', type=str, required=True,
         metavar='Earth Engine feature collection ID', default='',
         help='Set the feature collection ID')
 
     parser.add_argument(
-        '-s', '--start', metavar='YEAR',
+        '-s', '--start', type=str, metavar='YEAR',
         default=(end_dt - dt.timedelta(days=365)).strftime('%Y'),
         help='Start date (format YYYY)')
+
     parser.add_argument(
-        '-e', '--end', metavar='YEAR',
+        '-e', '--end', type=str, metavar='YEAR',
         default=end_dt.strftime('%Y'),
         help='End date (format YYYY)')
 
     parser.add_argument(
-        '-ts', '--temporal-summary', type=str, required=True,
-        metavar='Temporal Summary', default='',
-        help='Set the temporal summary')
+        '-v', '--variables', nargs='+', default=['et', 'eto', 'etr', 'ndvi'], metavar='VAR',
+        help='variables')
 
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
+    '''
+    python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_wrs2 -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -v et -s 2017 -e 2017
+    '''
+    start_time = time.time()
+    ee.Initialize()
     args = arg_parse()
+    coll_name = ''
+    feat_colls = config.statics['feature_collections'].keys()
+    for feat_coll in feat_colls:
+        if config.statics['feature_collections'][feat_coll]['feature_collection_name'] == args.feature_collection_id:
+                coll_name = feat_coll
 
-    # FIXME:
-    ee_coll = ee.ImageCollection(args.asset_id).filterDate(args.start, args.end)
-    ee_img = compute_temporal_summary(ee_coll)
-    feat_coll = ee.FeatureCollection('ft:' + args.feature_collection_id)
-    data = compute_zonal_stats(ee_img, feat_coll, add_to_db=False)
-    print(data)
+    if not coll_name:
+        raise Exception('Feature Collection not found in statics.feature_collections')
+        sys.exit(1)
+
+    ee_coll = ee.ImageCollection(args.asset_id).filterDate(args.start + '-01-01', args.end + '-12-31')
+    ee_feat_coll = ee.FeatureCollection(args.feature_collection_id)
+    for var in args.variables:
+        ee_coll = ee_coll.select(var)
+        if var == 'ndvi':
+            temporal_summary = 'mean'
+        else:
+            temporal_summary = 'sum'
+
+        ee_img = compute_temporal_summary(ee_coll, temporal_summary)
+        data = compute_zonal_stats(ee_img, coll_name, ee_feat_coll)
+        print(data)
+    print("--- %s seconds ---" % (str(time.time() - start_time)))
+    print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
+    print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
