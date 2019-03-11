@@ -136,8 +136,8 @@ if __name__ == '__main__':
     ee_img = ee.Image()
     ee_coll = ee.ImageCollection(args.asset_id)
     ee_img_list = []
+    ee_img_properties = {}
     for var in args.variables:
-        coll = ee_coll.select(var)
         for m_int in range(1, 13):
             m_str = str(m_int)
             if len(m_str) == 1:
@@ -145,29 +145,44 @@ if __name__ == '__main__':
             # Set start/end date strings for year and month
             sd, ed = set_start_end_date_str(year, m_int)
             # Filter collections by dates, and rename the band
-            coll = coll.filterDate(sd, ed).select([var], [var + '_m' + m_str])
+            coll = ee_coll.filterDate(sd, ed).select([var], [var + '_m' + m_str])
 
             # Temporal Summary
             if var == 'ndvi':
                 temporal_summary = 'mean'
             else:
                 temporal_summary = 'sum'
-            ee_img = compute_temporal_summary(coll, temporal_summary)
+            ee_img = compute_temporal_summary(coll, temporal_summary).copyProperties(coll.first())
+            # print(ee_img.propertyNames().getInfo())
             ee_img_list.append(ee_img)
     # Combine images into one multi-band image
     ee_img = ee.Image.cat(ee_img_list)
 
+
     # Zonal Stats
     reducedFeatColl = compute_zonal_stats(ee_img, coll_name, ee_feat_coll)
     # data = [[d[0], round(d[1], 4), round(d[2], 4)] for d in data if d[2] is not None]
+
     for var in args.variables:
         for m_int in range(1, 13):
+            sd, ed = set_start_end_date_str(year, m_int)
             m_str = str(m_int)
             if len(m_str) == 1:
                 m_str = '0' + m_str
             print('VAR/MONTH ' + var + '/' + m_str)
-            print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
+            print(sd, ed)
+            print(len(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo()))
 
+    ''''
+    task = ee.batch.Export.table.toCloudStorage(
+        collection=reducedFeatColl,
+        bucket='roses-geojson',
+        fileNamePrefix= args.feature_collection_id + '_' + str(year),
+        fileFormat='GeoJSON'
+    )
+    task.start()
+    print(task.status())
+    '''
 
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
