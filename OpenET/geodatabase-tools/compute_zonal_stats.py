@@ -55,13 +55,19 @@ def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
 
     # Reduce img over the regions of feat_coll
     '''
+    # FIXME crs should match the crs of the img
+    # proj = ee_img.projection()
+    # crs = proj.crs()
+    # transform = ee.List(ee.Dictionary(ee.Algorithms.Describe(proj)).get('transform'));  
+    '''
+    '''
     try:
         ee_reducedFeatColl = ee_img.reduceRegions(
             reducer=ee.Reducer.mean(),
             collection=feat_coll,
-            scale=self.tv['scale'],
             tileScale=1,
-            crs='EPSG:4326'
+            crs=crs,
+            crsTransform=transform
         )
     except:
         ee_reducedFeatColl = ee.FeatureCollection([])
@@ -70,9 +76,9 @@ def compute_zonal_stats(ee_img, ee_coll_name, feat_coll):
     ee_reducedFeatColl = ee_img.reduceRegions(
         collection=feat_coll,
         reducer=ee.Reducer.mean(),
-        scale=250,
+        scale=30,
         tileScale=1,
-        crs='EPSG:4326'
+        crs='EPSG:32610' # only valid in CA, based on img, feat projections should match the img projections
     )
 
     # ee_reducedFeatColl = ee_reducedFeatColl.map(set_aadata)
@@ -118,7 +124,8 @@ if __name__ == '__main__':
     '''
 
     start_time = time.time()
-    ee.Initialize()
+    # ee.Initialize()
+
     args = arg_parse()
     coll_name = ''
     # Get the feature collection name
@@ -137,6 +144,8 @@ if __name__ == '__main__':
     ee_coll = ee.ImageCollection(args.asset_id)
     ee_img_list = []
     ee_img_properties = {}
+    # FIXME: There will be another loop here over tiles(or utm zones) that deals with crs and img properties
+    # The featuremetadta table needs to be updated with that info
     for var in args.variables:
         for m_int in range(1, 13):
             m_str = str(m_int)
@@ -146,14 +155,15 @@ if __name__ == '__main__':
             sd, ed = set_start_end_date_str(year, m_int)
             # Filter collections by dates, and rename the band
             coll = ee_coll.filterDate(sd, ed).select([var], [var + '_m' + m_str])
-
+            # FIXME not needed sincew monthly data
             # Temporal Summary
             if var == 'ndvi':
                 temporal_summary = 'mean'
             else:
                 temporal_summary = 'sum'
             ee_img = compute_temporal_summary(coll, temporal_summary).copyProperties(coll.first())
-            # print(ee_img.propertyNames().getInfo())
+            # print(ee_img.getInfo()['properties']);
+            #FIXME: attach these properties to each feature in the collection as properties
             ee_img_list.append(ee_img)
     # Combine images into one multi-band image
     ee_img = ee.Image.cat(ee_img_list)
@@ -173,6 +183,7 @@ if __name__ == '__main__':
             print(sd, ed)
             print(len(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo()))
 
+    # reducedFeatColl.getInfo() returns dict --> convert to geojson
     ''''
     task = ee.batch.Export.table.toCloudStorage(
         collection=reducedFeatColl,
