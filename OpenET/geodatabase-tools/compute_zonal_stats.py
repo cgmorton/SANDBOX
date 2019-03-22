@@ -49,7 +49,7 @@ def compute_zonal_stats(ee_img, feat_coll):
     # crs/transform should match the crs of the img
     proj = ee_img.projection()
     crs = proj.crs()
-    transform = ee.List(ee.Dictionary(ee.Algorithms.Describe(proj)).get('transform'));
+    transform = ee.List(ee.Dictionary(ee.Algorithms.Describe(proj)).get('transform'))
     try:
         ee_reducedFeatColl = ee_img.reduceRegions(
             reducer=ee.Reducer.mean(),
@@ -100,7 +100,17 @@ def arg_parse():
 
 if __name__ == '__main__':
     '''
+    # One landsat scene ssebop
     python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_wrs2 -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
+
+    # One landsat scene ndvi_et
+    python compute_zonal_stats.py -ai projects/openet/test2/ndvi_et/monthly_wrs2 -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
+
+    # All of CA ssebop
+    python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_mgrs -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
+
+    # All of CA ndvi_et
+    python compute_zonal_stats.py -ai projects/openet/test2/ndvi_et/monthly_mgrs -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
     '''
 
     start_time = time.time()
@@ -151,8 +161,6 @@ if __name__ == '__main__':
     )
     task.start()
     # print(task.status())
-
-    '''
     for var in args.variables:
         for m_int in month_ints:
             sd, ed = set_start_end_date_str(year, m_int)
@@ -162,7 +170,6 @@ if __name__ == '__main__':
             print('VAR/MONTH ' + var + '/' + m_str)
             print(sd, ed)
             print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
-    '''
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
