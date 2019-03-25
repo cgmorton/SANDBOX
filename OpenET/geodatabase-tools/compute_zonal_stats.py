@@ -19,20 +19,6 @@ def set_start_end_date_str(yr_int, m_int):
     ed = str(yr_int) + '-' + m_str + '-' + str(config.statics['mon_len'][m_int - 1])
     return sd, ed
 
-
-def compute_temporal_summary(ee_coll, temporal_summary):
-    if temporal_summary == 'mean':
-        ee_img = ee_coll.mean()
-    if temporal_summary == 'sum':
-        ee_img = ee_coll.sum()
-    if temporal_summary == 'min':
-        ee_img = ee_coll.min()
-    if temporal_summary == 'max':
-        ee_img = ee_coll.max()
-    if temporal_summary == 'median':
-        ee_img = ee_coll.median()
-    return ee_img
-
 def compute_zonal_stats(ee_img, feat_coll):
     '''
     Apply a reducer over the area of each feature in the given feature collection.
@@ -42,14 +28,18 @@ def compute_zonal_stats(ee_img, feat_coll):
     :return: dict zonal_stats
     '''
     def add_img_properties(feature):
-        # feature.setMulti(props)
-        feature.set(props)
+        feature.copyProperties(ee_img)
         return feature
 
-    # crs/transform should match the crs of the img
+
+    '''
+    # FIXME: crs/transform should match the crs of the img
     proj = ee_img.projection()
     crs = proj.crs()
     transform = ee.List(ee.Dictionary(ee.Algorithms.Describe(proj)).get('transform'))
+    '''
+    crs = 'EPSG:32610'
+    transform = [30, 0, 15, 0, -30, 15]
     try:
         ee_reducedFeatColl = ee_img.reduceRegions(
             reducer=ee.Reducer.mean(),
@@ -61,10 +51,9 @@ def compute_zonal_stats(ee_img, feat_coll):
     except Exception as e:
         raise Exception(e)
 
-    # Copy the image properties to each feature
-    props = ee_img.getInfo()['properties']
-    del(props['system:footprint'])
-    ee_reducedFeatColl.map(add_img_properties)
+    #FIXME: Copy the image properties to each feature
+    # props = ee_img.getInfo()['properties']
+    # ee_reducedFeatColl.map(add_img_properties)
     return ee_reducedFeatColl
 
 
@@ -141,12 +130,12 @@ if __name__ == '__main__':
             # Set start/end date strings for year and month
             sd, ed = set_start_end_date_str(year, m_int)
             # Filter collections by dates, and rename the band
-            ee_img = ee_coll.filterDate(sd, ed).select([var], [var + '_m' + m_str]).first()
+            coll = ee_coll.filterDate(sd, ed).select([var], [var + '_m' + m_str])
+            ee_img = coll.mosaic().copyProperties(coll.first())
+            # ee_img = coll.first()
             ee_img_list.append(ee_img)
-
     # Combine images into one multi-band image
     ee_img = ee.Image.cat(ee_img_list)
-
     # Zonal Stats
     reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
 
@@ -160,7 +149,9 @@ if __name__ == '__main__':
         fileFormat='GeoJSON'
     )
     task.start()
-    # print(task.status())
+    print(task.status())
+    print(file_name)
+    '''
     for var in args.variables:
         for m_int in month_ints:
             sd, ed = set_start_end_date_str(year, m_int)
@@ -170,6 +161,7 @@ if __name__ == '__main__':
             print('VAR/MONTH ' + var + '/' + m_str)
             print(sd, ed)
             print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
+    '''
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
