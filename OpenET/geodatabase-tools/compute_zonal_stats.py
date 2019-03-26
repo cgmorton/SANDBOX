@@ -2,6 +2,7 @@ import sys, time
 import datetime as dt
 import argparse
 import ee
+import pprint
 
 import config
 
@@ -28,8 +29,8 @@ def compute_zonal_stats(ee_img, feat_coll):
     :return: dict zonal_stats
     '''
     def add_img_properties(feature):
-        feature.copyProperties(ee_img)
-        return feature
+        return feature.copyProperties(ee_img)
+
 
 
     '''
@@ -41,7 +42,7 @@ def compute_zonal_stats(ee_img, feat_coll):
     crs = 'EPSG:32610'
     transform = [30, 0, 15, 0, -30, 15]
     try:
-        ee_reducedFeatColl = ee_img.reduceRegions(
+        ee_reducedFeatColl = ee.Image(ee_img).reduceRegions(
             reducer=ee.Reducer.mean(),
             collection=feat_coll,
             tileScale=1,
@@ -52,8 +53,7 @@ def compute_zonal_stats(ee_img, feat_coll):
         raise Exception(e)
 
     #FIXME: Copy the image properties to each feature
-    # props = ee_img.getInfo()['properties']
-    # ee_reducedFeatColl.map(add_img_properties)
+    ee_reducedFeatColl = ee_reducedFeatColl.map(add_img_properties)
     return ee_reducedFeatColl
 
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     # The featuremetadata table needs to be updated with that info
     ee_img_list = []
     for var in args.variables:
-        for m_int in month_ints:
+        for m_int in month_ints[0:1]:
             m_str = str(m_int)
             if len(m_str) == 1:
                 m_str = '0' + m_str
@@ -131,14 +131,14 @@ if __name__ == '__main__':
             sd, ed = set_start_end_date_str(year, m_int)
             # Filter collections by dates, and rename the band
             coll = ee_coll.filterDate(sd, ed).select([var], [var + '_m' + m_str])
-            ee_img = coll.mosaic().copyProperties(coll.first())
+            ee_img = coll.mosaic()
             # ee_img = coll.first()
             ee_img_list.append(ee_img)
     # Combine images into one multi-band image
-    ee_img = ee.Image.cat(ee_img_list)
+    ee_img = ee.Image.cat(ee_img_list).copyProperties(coll.first())
     # Zonal Stats
     reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
-
+    '''
     file_name = ('.').join(args.asset_id.split('/')) + '-' + ('.').join(args.feature_collection_id.split('/'))
     file_name = file_name + '-' + str(year),
     # Upload to bucket as geojson
@@ -152,8 +152,9 @@ if __name__ == '__main__':
     print(task.status())
     print(file_name)
     '''
+
     for var in args.variables:
-        for m_int in month_ints:
+        for m_int in month_ints[0:1]:
             sd, ed = set_start_end_date_str(year, m_int)
             m_str = str(m_int)
             if len(m_str) == 1:
@@ -161,7 +162,7 @@ if __name__ == '__main__':
             print('VAR/MONTH ' + var + '/' + m_str)
             print(sd, ed)
             print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
-    '''
+
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
