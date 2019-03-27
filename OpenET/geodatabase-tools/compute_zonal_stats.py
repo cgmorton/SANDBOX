@@ -32,7 +32,6 @@ def compute_zonal_stats(ee_img, feat_coll):
         return feature.copyProperties(ee_img)
 
 
-
     '''
     # FIXME: crs/transform should match the crs of the img
     proj = ee_img.projection()
@@ -154,7 +153,7 @@ if __name__ == '__main__':
         print(file_name)
 
         '''
-
+        # Uncomment if you want to see the data
         for var in args.variables:
             sd, ed = set_start_end_date_str(year, m_int)
             m_str = str(m_int)
