@@ -122,11 +122,11 @@ if __name__ == '__main__':
     # FIXME: There will be another loop here over tiles(or utm zones) that deals with crs and img properties
     # The featuremetadata table needs to be updated with that info
     ee_img_list = []
-    for var in args.variables:
-        for m_int in month_ints[0:1]:
-            m_str = str(m_int)
-            if len(m_str) == 1:
-                m_str = '0' + m_str
+    for m_int in month_ints:
+        m_str = str(m_int)
+        if len(m_str) == 1:
+            m_str = '0' + m_str
+        for var in args.variables:
             # Set start/end date strings for year and month
             sd, ed = set_start_end_date_str(year, m_int)
             # Filter collections by dates, and rename the band
@@ -134,27 +134,28 @@ if __name__ == '__main__':
             ee_img = coll.mosaic()
             # ee_img = coll.first()
             ee_img_list.append(ee_img)
-    # Combine images into one multi-band image
-    ee_img = ee.Image.cat(ee_img_list).copyProperties(coll.first())
-    # Zonal Stats
-    reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
-    '''
-    file_name = ('.').join(args.asset_id.split('/')) + '-' + ('.').join(args.feature_collection_id.split('/'))
-    file_name = file_name + '-' + str(year),
-    # Upload to bucket as geojson
-    task = ee.batch.Export.table.toCloudStorage(
-        collection=reducedFeatColl,
-        bucket='roses-geojson',
-        fileNamePrefix = file_name,
-        fileFormat='GeoJSON'
-    )
-    task.start()
-    print(task.status())
-    print(file_name)
-    '''
 
-    for var in args.variables:
-        for m_int in month_ints[0:1]:
+        # Combine images into one multi-band image
+        ee_img = ee.Image.cat(ee_img_list).copyProperties(coll.first())
+        # Zonal Stats
+        reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
+
+        file_name = ('.').join(args.asset_id.split('/')) + '-' + ('.').join(args.feature_collection_id.split('/'))
+        file_name = file_name + '-' + str(year) + '-' + m_str,
+        # Upload to bucket as geojson
+        task = ee.batch.Export.table.toCloudStorage(
+            collection=reducedFeatColl,
+            bucket='roses-geojson',
+            fileNamePrefix = file_name,
+            fileFormat='GeoJSON'
+        )
+        task.start()
+        print(task.status())
+        print(file_name)
+
+        '''
+
+        for var in args.variables:
             sd, ed = set_start_end_date_str(year, m_int)
             m_str = str(m_int)
             if len(m_str) == 1:
@@ -162,7 +163,7 @@ if __name__ == '__main__':
             print('VAR/MONTH ' + var + '/' + m_str)
             print(sd, ed)
             print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
-
+        '''
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))
