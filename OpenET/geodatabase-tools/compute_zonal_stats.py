@@ -80,7 +80,7 @@ def arg_parse():
         help='Start date (format YYYY)')
 
     parser.add_argument(
-        '-v', '--variables', nargs='+', default=['et', 'etr', 'ndvi'], metavar='VAR',
+        '-v', '--variables', nargs='+', default=['et', 'etr', 'etf', 'ndvi', 'count'], metavar='VAR',
         help='variables')
 
     args = parser.parse_args()
@@ -121,11 +121,13 @@ if __name__ == '__main__':
     # FIXME: There will be another loop here over tiles(or utm zones) that deals with crs and img properties
     # The featuremetadata table needs to be updated with that info
     ee_img_list = []
-    for m_int in month_ints:
-        m_str = str(m_int)
-        if len(m_str) == 1:
-            m_str = '0' + m_str
-        for var in args.variables:
+
+    for var in args.variables:
+        print('Processing var/year ' + var + '/' + str(year))
+        for m_int in month_ints:
+            m_str = str(m_int)
+            if len(m_str) == 1:
+                m_str = '0' + m_str
             # Set start/end date strings for year and month
             sd, ed = set_start_end_date_str(year, m_int)
             # Filter collections by dates, and rename the band
@@ -138,9 +140,22 @@ if __name__ == '__main__':
         ee_img = ee.Image.cat(ee_img_list).copyProperties(coll.first())
         # Zonal Stats
         reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
+        '''
+        # Sanity check/Testing
+        # Uncomment if you want to see the data
+        for m_int in month_ints:
+            sd, ed = set_start_end_date_str(year, m_int)
+            m_str = str(m_int)
+            if len(m_str) == 1:
+                m_str = '0' + m_str
+            print('VAR/MONTH ' + var + '/' + m_str)
+            print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
 
-        file_name = ('.').join(args.asset_id.split('/')) + '-' + ('.').join(args.feature_collection_id.split('/'))
-        file_name = file_name + '-' + str(year) + '-' + m_str,
+        '''
+        # Upload to bucket as geojson
+        # Comment out for testing
+        file_name = args.asset_id.split('/')[-1] + '-' + args.feature_collection_id.split('/')[-1]
+        file_name = file_name + '-' + var + '-' +  str(year)
         # Upload to bucket as geojson
         task = ee.batch.Export.table.toCloudStorage(
             collection=reducedFeatColl,
@@ -149,20 +164,32 @@ if __name__ == '__main__':
             fileFormat='GeoJSON'
         )
         task.start()
-        print(task.status())
-        print(file_name)
+        task_status = dict(task.status())
+        # print(task_status)
+        task_id = task_status['id']
+        task_state = task_status['state']
+        print('Upload task submitted. Task state is ' + task_state)
+        # Wait for the upload to complete
+        while task_state not in  ['COMPLETED', 'UNKNOWN']:
+            time.sleep(10)
+            try:
+                task_status = dict(ee.data.getTaskStatus(task_id)[0])
+            except:
+                # try again
+                try:
+                    task_status = dict(ee.data.getTaskStatus(task_id)[0])
+                except Exception as e:
+                    print('ERROR: getTaskError failed twice with error ' + str(e))
+            task_state = task_status['state']
+            print('Task state is ' + task_state)
+            if task_state in ['FAILED', 'CANCELLED']:
+                print('ERROR uploading file ' + file_name)
+                print('Upload failed with state ' + task_state)
+                break
 
-        '''
-        # Uncomment if you want to see the data
-        for var in args.variables:
-            sd, ed = set_start_end_date_str(year, m_int)
-            m_str = str(m_int)
-            if len(m_str) == 1:
-                m_str = '0' + m_str
-            print('VAR/MONTH ' + var + '/' + m_str)
-            print(sd, ed)
-            print(reducedFeatColl.aggregate_array(var + '_m' + m_str).getInfo())
-        '''
+        print('File uploaded to bucket ' + file_name)
+
+
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))
     print("--- %s hours ---" % (str((time.time() - start_time) / 3600.0)))

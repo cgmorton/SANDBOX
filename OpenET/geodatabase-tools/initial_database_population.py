@@ -80,8 +80,10 @@ if __name__ == '__main__':
     model =  args.model
 
     geom_change_by_year = False
+    '''
     if feat_coll in config.statics['feature_collections_changing_by_year']:
         geom_change_by_year = True
+    '''
 
     s_year = int(args.start[0:4])
     e_year = int(args.end[0:4])
