@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 
-'''
-Compute Zonal statistics
-'''
-
-import time
+import sys, time
 import datetime as dt
 import argparse
 import ee
-
+import pprint
 
 import config
 
@@ -34,6 +30,10 @@ def compute_zonal_stats(ee_img, feat_coll):
     :param feat_col:
     :return: dict zonal_stats
     '''
+    def add_img_properties(feature):
+        return feature.copyProperties(ee_img)
+
+
     '''
     # FIXME: crs/transform should match the crs of the img
     proj = ee_img.projection()
@@ -53,25 +53,10 @@ def compute_zonal_stats(ee_img, feat_coll):
     except Exception as e:
         raise Exception(e)
 
+    #FIXME: Copy the image properties to each feature
+    ee_reducedFeatColl = ee_reducedFeatColl.map(add_img_properties)
     return ee_reducedFeatColl
 
-def addImgProps_to_featColl(img, featColl):
-    def addImgProps(feature):
-        feature.copyProperties(img)
-        '''
-        print(properties)
-        feature.setMulti(ee.Dictionary(properties))
-        '''
-        return feature
-
-    prop_names = img.propertyNames().getInfo()
-    properties = {}
-    for prop_name in prop_names:
-        if prop_name.startswith('system'):
-            continue
-        properties[prop_name] = img.get(prop_name).getInfo()
-    featColl.map(addImgProps)
-    return featColl
 
 def arg_parse():
     """"""
@@ -105,22 +90,14 @@ def arg_parse():
 
 if __name__ == '__main__':
     '''
-    # One landsat scene ssebop CV
+    # One landsat scene ssebop
     python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_wrs2 -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
-
-    # One landsat scene ssebop ca_clu_public
-    python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_wrs2 -fi projects/openet/featureCollections/ca_clu_public -y 2017
-
+    # One landsat scene ssebop az_clu_public
+    python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_wrs2 -fi projects/openet/featureCollections/az_clu_public -y 2017
     # One landsat scene ndvi_et
     python compute_zonal_stats.py -ai projects/openet/test2/ndvi_et/monthly_wrs2 -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
-
-    # All of CA ssebop central valley
+    # All of CA ssebop
     python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_mgrs -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
-
-    # ALl scene ssebop ca_clu_public
-    python compute_zonal_stats.py -ai projects/openet/test2/ssebop/monthly_mgrs -fi projects/openet/featureCollections/ca_clu_public -y 2017
-
-
     # All of CA ndvi_et
     python compute_zonal_stats.py -ai projects/openet/test2/ndvi_et/monthly_mgrs -fi users/bdaudert/nasa-roses/usgs_central_valley_mod_base15_ca_poly_170616_wgs84 -y 2017
     '''
@@ -128,6 +105,15 @@ if __name__ == '__main__':
     start_time = time.time()
     args = arg_parse()
     month_ints = range(1, 13)
+    feat_coll_name = ''
+    # Get the feature collection name
+    feat_colls = config.statics['feature_collections'].keys()
+    for feat_coll in feat_colls:
+        if config.statics['feature_collections'][feat_coll]['feature_collection_name'] == args.feature_collection_id:
+                feat_coll_name = feat_coll
+    if not feat_coll_name:
+        raise Exception('Feature Collection not found in statics.feature_collections')
+        sys.exit(1)
 
     year = int(args.year)
     ee_feat_coll = ee.FeatureCollection(args.feature_collection_id)
@@ -137,7 +123,7 @@ if __name__ == '__main__':
     # The featuremetadata table needs to be updated with that info
     ee_img_list = []
 
-    for var in args.variables:
+    for var in args.variables[0:1]:
         print('Processing var/year ' + var + '/' + str(year))
         for m_int in month_ints:
             m_str = str(m_int)
@@ -148,40 +134,41 @@ if __name__ == '__main__':
             # Filter collections by dates, and rename the band
             coll = ee_coll.filterDate(sd, ed).select([var], [var + '_m' + m_str])
             ee_img = coll.mosaic()
+            # ee_img = coll.first()
             ee_img_list.append(ee_img)
 
-    # Combine images into one multi-band image
-    # ee_img = ee.Image.cat(ee_img_list).copyProperties(ee_coll.first())
-    ee_img = ee.Image.cat(ee_img_list)
+        # Combine images into one multi-band image
+        # ee_img = ee.Image.cat(ee_img_list).copyProperties(coll.first())
+        ee_img = ee.Image.cat(ee_img_list)
+        # Zonal Stats
+        reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
+        # Convert to geojson object
+        num_features = reducedFeatColl.size().getInfo()
+        # Process in setps of 5000, that is the limit on featureCollection features when getInfo() is called
+        step = 5000
+        count = 0
+        gjsonObj = {}
+        while count <= num_features:
+            fid_list = list(range(count, count + step))
+            pyFeatColl = reducedFeatColl.filter(ee.Filter.inList('FID', fid_list)).getInfo()
+            if count == 0:
+                gjsonObj = pyFeatColl
+                print(gjsonObj['features'][0]['properties'])
+                print(coll.first().propertyNames().getInfo())
+                break
+            else:
+                gjsonObj['features'] += pyFeatColl['features']
+            diff = num_features - count
+            count += step
 
+        '''
+        # last chunk
+        fid_list = list(range(diff, num_features))
+        pyFeatColl = reducedFeatColl.filter(ee.Filter.inList('FID', fid_list)).getInfo()
+        '''
+        # FIXME: add populate database one year one var at time
+    
 
-
-    #Zonal Stats
-    reducedFeatColl = compute_zonal_stats(ee_img, ee_feat_coll)
-    # Add the image properties
-    reducedFeatColl = addImgProps_to_featColl(ee_coll.first(), reducedFeatColl)
-    num_features = reducedFeatColl.size().getInfo()
-    # Process in setps of 5000, that is the limit on featureCollection features when getInfo() is called
-    step = 5000
-    count = 0
-    gjsonObj = {}
-    while count <= num_features:
-        fid_list = list(range(count, count + step))
-        pyFeatColl = reducedFeatColl.filter(ee.Filter.inList('FID',fid_list)).getInfo()
-        if count == 0:
-            gjsonObj = pyFeatColl
-            print(gjsonObj['features'][0]['properties'])
-            break
-        else:
-            gjsonObj['features'] += pyFeatColl['features']
-        diff = num_features - count
-        count += step
-
-    '''
-    # last chunk
-    fid_list = list(range(diff, num_features))
-    pyFeatColl = reducedFeatColl.filter(ee.Filter.inList('FID', fid_list)).getInfo()
-    '''
 
     print("--- %s seconds ---" % (str(time.time() - start_time)))
     print("--- %s minutes ---" % (str((time.time() - start_time) / 60.0)))

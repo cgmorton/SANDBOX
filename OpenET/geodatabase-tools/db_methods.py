@@ -19,17 +19,17 @@ from shapely.geometry.multipolygon import MultiPolygon
 from geoalchemy2.shape import from_shape, to_shape
 from geoalchemy2.types import Geometry
 import sqlalchemy.sql as sqa
+from sqlalchemy import event, DDL
 
 import config
-from populate_db import SCHEMA
-from populate_db import GEO_BUCKET_URL, DATA_BUCKET_URL
+from initial_database_population import SCHEMA
 
 #######################################
 # OpenET database tables
 #######################################
 Base = declarative_base()
 Base.metadata = db.MetaData(schema=SCHEMA)
-#event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + SCHEMA))
+event.listen(Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS " + SCHEMA))
 
 # Many-to_many
 FeatureUserLink = db.Table("feature_user_link", Base.metadata,
@@ -255,37 +255,37 @@ class database_Util(object):
     """
     Class to support database (postgres+postgis) population
     Method:
-        - The base query is defined from relevant template values
-    Args:
-        :feature_collection Unique ID of geojson file containing fields for the feature_collection
-        :model SSEBop etc
-        :year data year
-        :user_id 0 if feature_collection is public
-        :feature_collection_changing_by_year: True or False, if False we set year = 9999 in Feature table
-        :override: id True, all data associated with the user and feature collection already in the db, will be deleted
-                   and new data will be added when add_data_to_db is called
+        - Each instance populates the database with data for ONE Model,
+          ONE year but All variables (currently: 'et', 'etr', 'etf', 'ndvi')
     Notes:
-        - if the feature_collection for this user is already in the db  and override is False
+        -
     """
-    def __init__(self, feature_collection, model, year, user_id, feature_collection_changing_by_year, engine):
-        self.feature_collection = feature_collection
-        self.year = int(year)
+    def __init__(self, model, year, variables, engine, user_id, feature_collection_name,
+                 zonal_stats_geojson, bucket_path, features_change_by_year = False):
+        '''
+
+        :param model: ET Model name
+        :param year: year to be populated, right now we only allow to do one year ata atime
+        :param variables: et variables to be populated if not all
+        :param engine: database engine (see database population script)
+        :param user_id: user ID associated with the feature collectio (0 = public)
+        :param feature_collection_name: feature collection name to be stored in database,
+               usually the ee featureCollection ID
+        :param zonal_stats_file: file name of the file that contains the precomputed zonal stats
+        :param bucket_path: path to bucket where data_file is stored
+        :param features_yange_by_year: True if the feature geometries in the collection change by year
+        '''
         self.model = model
-        self.user_id = user_id
-        self.feature_collection_changing_by_year = feature_collection_changing_by_year
+        self.year = int(year)
+        self.variables = variables
         self.engine = engine
+        self.user_id = user_id
         self.conn = engine.connect()
+        self.feature_collection_name = feature_collection_name
+        self.zonal_stat_geojson = zonal_stats_geojson
+        self.bucket_path = bucket_path
+        self.features_change_by_year = features_change_by_year
 
-        self.geo_bucket_url = GEO_BUCKET_URL
-        self.data_bucket_url = DATA_BUCKET_URL
-
-        # Used to read geometry data from buckets
-        if self.feature_collection_changing_by_year:
-            # Field boundaries depend on years
-            self.geoFName = feature_collection + "_" + str(year) + ".geojson"
-        else:
-            self.geoFName = feature_collection + ".geojson"
-        self.dataFName = feature_collection + "_" + str(year) + ".json"
 
     def object_as_dict(self, obj):
         """
@@ -303,15 +303,15 @@ class database_Util(object):
             shell_flag = True
         return shell_flag
 
-    def upload_file_to_bucket(self, upload_path, bucket_path):
+    def upload_file_to_bucket(self, source_file_path, bucket_path):
         """
-        :param upload_path: source file path on local host
+        :param source_file_path: source file path on local host
         :param bucket_path: destination file path
         :return:
         """
         logging.info("Uploading to bucket")
         shell_flag = self.set_shell_flag()
-        args = ["gsutil", "cp", upload_path, bucket_path]
+        args = ["gsutil", "cp", source_file_path, bucket_path]
         if not logging.getLogger().isEnabledFor(logging.DEBUG):
             args.insert(1, "-q")
 
@@ -330,17 +330,33 @@ class database_Util(object):
             except Exception as e:
                 logging.exception("Error uploading to bucket: " + str(e))
 
-    def delete_file_from_local(self, upload_path):
+    def delete_file_from_local(self, file_path):
         try:
-            os.remove(upload_path)
-            logging.info("Deleted local file " + upload_path)
+            os.remove(file_path)
+            logging.info("Deleted local file " + file_path)
         except:
             pass
 
-    def delete_file_from_bucket(self, bucket_path):
+    def read_data_from_local(self, data_file_path):
+        '''
+        :param data_file_path:
+        :return:
+        '''
+        try:
+            d = geojson.load(open(data_file_path, 'r'))
+        except Exception as e:
+            logging.error(e)
+            raise Exception(e)
+        return d
+
+    def delete_file_from_bucket(self, bucket_file_path):
+        '''
+        :param bucket_file_path: path to bucket and file name
+        :return:
+        '''
         logging.info("Deleting bucket")
         shell_flag = self.set_shell_flag()
-        args = ["gsutil", "rm", bucket_path]
+        args = ["gsutil", "rm", bucket_file_path]
         if not logging.getLogger().isEnabledFor(logging.DEBUG):
             args.insert(1, "-q")
         try:
@@ -349,12 +365,12 @@ class database_Util(object):
             logging.exception("Error uploading to bucket: " + str(e))
 
 
-    def read_geodata_from_bucket(self):
+    def read_data_from_bucket(self):
         """
         All geometry data are stored in cloud buckets
         :return:
         """
-        url = self.geo_bucket_url + self.geoFName
+        url = self.bucket_path + self.zonal_stats_geojson
         try:
             d = geojson.load(urllib2.urlopen(url))
         except Exception as e:
@@ -362,20 +378,6 @@ class database_Util(object):
             raise Exception(e)
         return d
 
-    def read_etdata_from_bucket(self):
-        """
-        All et data are stored in cloud buckets
-        :return:
-        """
-        url = self.data_bucket_url + self.model + "/" + self.dataFName
-        d = json.load(urllib2.urlopen(url))
-        try:
-            d = json.load(urllib2.urlopen(url))
-            print("Read data from bucket file " + url)
-        except Exception as e:
-            logging.error(e)
-            raise Exception(e)
-        return d
 
     def add_in_chunks(self, entity_list, session):
         ent_len = len(entity_list)
@@ -413,12 +415,11 @@ class database_Util(object):
         print("Table {} exists: {}".format(table_name, ret))
         return ret
 
-    def check_if_features_in_db(self, feature_collection, feature_year, session):
-        coll_name = config.statics["feature_collections"][feature_collection]["feature_collection_name"]
-        num_features = config.statics["feature_collections"][feature_collection]["num_features"]
+    def check_if_features_in_db(self, year, session):
+        num_features = config.statics["feature_collections"][self.feature_collection_name]["num_features"]
         feature_query = session.query(Feature).filter(
-            Feature.feature_collection_name == coll_name,
-            Feature.year == feature_year
+            Feature.feature_collection_name == self.feature_collection_name,
+            Feature.year == year
         )
         cnt = feature_query.count()
         '''
@@ -453,17 +454,18 @@ class database_Util(object):
         return in_db
 
 
-    def check_if_feature_in_db(self, feature_collection, feature_id_from_user, feature_year, session):
-        coll_name = config.statics["feature_collections"][feature_collection]["feature_collection_name"]
+    def check_if_feature_in_db(self, feature_collection_name, feature_id_from_user, feature_year, session):
         feature_query = session.query(Feature).filter(
-            Feature.feature_collection_name == coll_name,
+            Feature.feature_collection_name == feature_collection_name,
             Feature.feature_id_from_user == feature_id_from_user,
             Feature.year == feature_year
         )
         if len(feature_query.all()) == 0:
             return None
         if len(feature_query.all()) > 1:
-            logging.error("Multiple geometries for " + feature_collection + "/" + str(feature_id_from_user) + "/" + str(year))
+            msg = "Multiple geometries for " + feature_collection_name + "/" +\
+                  str(feature_id_from_user)
+            logging.error(msg)
             return None
         feature = feature_query.first()
         feature_id = feature.feature_id
@@ -493,9 +495,8 @@ class database_Util(object):
         # Note: primary key is AUTOSET in db
                 feature_id_from user is set to feature_index in featCollection if user didn"t give it
         """
-        coll_name = config.statics["feature_collections"][self.feature_collection]["feature_collection_name"]
         feature = Feature(
-            feature_collection_name = coll_name,
+            feature_collection_name = self.feature_collection_name,
             feature_id_from_user = feature_id_from_user,
             type = geom_type,
             year = int(year),
@@ -615,13 +616,12 @@ class database_Util(object):
         """
         # NOTE: Feature, FeatureMetdata tables are set later
 
-    def add_data_to_db(self, session, user_id=0, etdata=None, geojson_data=None):
+    def add_data_to_db(self, session, user_id=0, geojson_data=None):
         """
         Add data to database
         :params:
             session: database session
             user_id
-            etdata: json object containing the data, if None, data is read from bucket
             geojson_data: contains the geometry information as geojson, if None, data is read from bucket
         :return:
         """
@@ -644,34 +644,32 @@ class database_Util(object):
             self.set_base_database_tables(session)
 
         # 2. check if the features are already in there
-        if self.feature_collection_changing_by_year:
+        if self.features_change_by_year:
             feature_year = self.year
         else:
             feature_year = 9999
-        features_in_db = self.check_if_features_in_db(self.feature_collection, feature_year, session)
+        features_in_db = self.check_if_features_in_db(feature_year, session)
         if features_in_db:
-            print('Data for feature_collection/year ' + self.feature_collection + ' already in database. Exciting')
+            msg = 'Data for feature_collection/year ' + self.feature_collection_name + '/' +\
+                  str(feature_year) + ' already in database. Exciting'
+            print(msg)
             sys.exit(0)
 
         # Read etdata from bucket
-        if etdata is None:
-            etdata = self.read_etdata_from_bucket()
-
-        if geojson_data is None:
-            geojson_data = self.read_geodata_from_bucket()
+        geojson_data = self.read_data_from_bucket()
 
         # Set the user ids associated with this feature_collection
-        user_ids_for_featColl = config.statics["feature_collections"][self.feature_collection]["users"]
+        user_ids_for_featColl = config.statics["feature_collections"][self.feature_collection_name]["users"]
 
         # Loop over features in bucket file, do in chunks
         # Oherwise we get a kill9 error
         chunk_size = config.statics["ingest_chunk_size"]
-        if chunk_size <= len(etdata["features"]):
-            num_chunks = len(etdata["features"]) / chunk_size
+        if chunk_size <= len(geojson_data["features"]):
+            num_chunks = len(geojson_data["features"]) / chunk_size
         else:
             num_chunks = 1
 
-        if len(etdata["features"]) / chunk_size:
+        if len(geojson_data["features"]) / chunk_size:
             num_chunks += 1
         chunk = 1
         print("Adding data in " + str(num_chunks) + " chunk(s) to database.")
@@ -682,7 +680,7 @@ class database_Util(object):
         cursor = dbapi_conn.cursor()  # actual DBAPI cursor
         cursor.execute("SET search_path TO " + SCHEMA + ", public")
 
-        permission = config.statics['feature_collections'][self.feature_collection]['permission']
+        permission = config.statics['feature_collections'][self.feature_collection_name]['permission']
         last_timeseries_update = dt.datetime.today()
         timeseries_id = self.get_last_timeseries_id(session)
 
@@ -696,8 +694,8 @@ class database_Util(object):
 
             idx_start = (chunk - 1) * chunk_size
             idx_end = chunk * chunk_size
-            if idx_end > len(etdata["features"]):
-                idx_end = len(etdata["features"])
+            if idx_end > len(geojson_data["features"]):
+                idx_end = len(geojson_data["features"])
 
             # loop over features in chunk
             for f_idx in range(idx_start, idx_end):
@@ -713,13 +711,13 @@ class database_Util(object):
 
 
                 # Check if feature is in db
-                feature_id = self.check_if_feature_in_db(self.feature_collection, feature_id_from_user, feature_year, session)
+                feature_id = self.check_if_feature_in_db(self.feature_collection_name, feature_id_from_user, feature_year, session)
 
                 # Check if  data is in db
                 data_in_db = self.check_if_data_in_db(feature_id, session)
 
                 if feature_id and data_in_db:
-                    print("Data for feature_id/year " + str(feature_id) + "/" + str(self.feature_year) +
+                    print("Data for feature_id/year " + str(feature_id) + "/" + str(feature_year) +
                           " found in db. Skipping...")
                     continue
 
@@ -748,9 +746,9 @@ class database_Util(object):
                     logging.info("Feature found in db")
                     print("Feature found in db")
 
-                f_data = etdata["features"][f_idx]
+                f_data = geojson_data["features"][f_idx]
                 # Set the feature metadata and data tables for bulk ingest
-                for key in config.statics["feature_collections"][self.feature_collection]["metadata"]:
+                for key in config.statics["feature_collections"][self.feature_collection_name]["metadata"]:
                     try:
                         value = str(g_data["properties"][key])
                     except:
