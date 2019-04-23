@@ -178,8 +178,8 @@
       "user_email": "N/A",
       "last_login": "N/A",
       "joined": "N/A",
-      "ip": "",
-      "notes": "",
+      "ip": "N/A",
+      "notes": "N/A",
       "active": "True",
       "role": "guest"
     }

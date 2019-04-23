@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-import os, time
+import os, time, logging
 import datetime as dt
 import argparse
+import geojson
 from sqlalchemy import create_engine
 
 import db_methods
@@ -29,6 +30,7 @@ DB_PORT = config.OPENET_DB_PORT
 DB_HOST = config.OPENET_DB_HOST
 DB_NAME = config.OPENET_DB_NAME
 DATA_BUCKET_URL = config.OPENET_DATA_BUCKET_URL
+LOCAL_DATA_PATH = config.OPENET_LOCAL_DATA_PATH
 
 
 def arg_parse():
@@ -72,7 +74,12 @@ def arg_parse():
 
 
 if __name__ == '__main__':
-
+    '''
+    TO RUN
+    python initial_database_population.py 
+    -fi projects/openet/featureCollections/ca_clu_public 
+    -m ssebop -uid 0 -s 2014 -e 2014
+    '''
     # Parse user arguments
     args = arg_parse()
 
@@ -102,35 +109,36 @@ if __name__ == '__main__':
     if feat_coll in config.statics['feature_collections_changing_by_year']:
         features_change_by_year = True
     '''
-    bucket_path = DATA_BUCKET_URL
-    # FIXME: is it a goog idea to demand the file names to be of certain format??
+    # FIXME: is it a good idea to demand the file names to be of certain format??
     data_file_name = args.model + '_'
     data_file_name += config.statics['feature_collections'][args.feature_collection_id]['data_file_name']
-
-
     s_year = int(args.start[0:4])
     e_year = int(args.end[0:4])
     years = range(s_year, e_year + 1)
     for year_int in years:
         # FIXME: support general file format for zonal stats files?
-        zonal_stats_geojson = data_file_name + '_' + str(year) + '.geojson'
         year = str(year_int)
-        DB_Util = db_methods.database_Util(
-            args.model, year, args.variables, engine,
-            args.user_id, args.feature_collection_id,
-            zonal_stats_geojson, bucket_path, features_change_by_year = False
-        )
+        zonal_stats_geojson = data_file_name + '_' + str(year) + '.geojson'
         if PROJECT == "OPENET":
-            # Could not  read from nasa-roses bucket, but that might be fixable
-            local_data_file = config.OPENET_LOCAL_DATA_PATH + zonal_stats_geojson
-            geojson_data = DB_Util.read_data_from_local()
+            #FIXME: Could not  read from nasa-roses bucket, but that might be fixable,
+            # Probably due to being on VPN when running on etdata
+            # Try population on etdata-x without vpn
+            data_dir = LOCAL_DATA_PATH
+            download_method = 'from_local'
         else:
-            # Data is read from bucket inside add_data_to_db
-            geojson_data = None
+            data_dir = DATA_BUCKET_URL
+            download_method = 'from_bucket'
+
+        data_file_path = data_dir + zonal_stats_geojson
+        DB_Util = db_methods.database_Util(
+            args.model, year, args.variables, engine, str(args.user_id),
+            args.feature_collection_id, data_file_path, download_method,
+            features_change_by_year = False
+        )
 
         session = Session()
         session.execute("SET search_path TO " + SCHEMA + ', public')
-        DB_Util.add_data_to_db(session, user_id=args.user_id, geojson_data=geojson_data)
+        DB_Util.add_data_to_db(session, user_id=args.user_id)
         session.close()
 
     print("--- %s seconds ---" % (str(time.time() - start_time)))

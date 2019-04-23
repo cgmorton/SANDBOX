@@ -22,7 +22,7 @@ import sqlalchemy.sql as sqa
 from sqlalchemy import event, DDL
 
 import config
-from initial_database_population import SCHEMA
+from initial_database_population import SCHEMA, PROJECT
 
 #######################################
 # OpenET database tables
@@ -261,7 +261,7 @@ class database_Util(object):
         -
     """
     def __init__(self, model, year, variables, engine, user_id, feature_collection_name,
-                 zonal_stats_geojson, bucket_path, features_change_by_year = False):
+                 data_file_path, download_method, features_change_by_year = False):
         '''
 
         :param model: ET Model name
@@ -282,8 +282,8 @@ class database_Util(object):
         self.user_id = user_id
         self.conn = engine.connect()
         self.feature_collection_name = feature_collection_name
-        self.zonal_stat_geojson = zonal_stats_geojson
-        self.bucket_path = bucket_path
+        self.data_file_path = data_file_path
+        self.download_method = download_method
         self.features_change_by_year = features_change_by_year
 
 
@@ -365,12 +365,11 @@ class database_Util(object):
             logging.exception("Error uploading to bucket: " + str(e))
 
 
-    def read_data_from_bucket(self):
+    def read_data_from_bucket(self, url):
         """
         All geometry data are stored in cloud buckets
         :return:
         """
-        url = self.bucket_path + self.zonal_stats_geojson
         try:
             d = geojson.load(urllib2.urlopen(url))
         except Exception as e:
@@ -596,7 +595,9 @@ class database_Util(object):
             users = coll_dict["users"]
             del coll_dict["users"]
             del coll_dict["num_features"]
-            del coll_dict['permission']
+            del coll_dict["permission"]
+            del coll_dict["data_file_name"]
+            coll_dict['feature_collection_name'] = coll_name
             for user in users:
                 init_dict = copy.deepcopy(coll_dict)
                 init_dict["user_id"] = user
@@ -655,8 +656,12 @@ class database_Util(object):
             print(msg)
             sys.exit(0)
 
-        # Read etdata from bucket
-        geojson_data = self.read_data_from_bucket()
+        # Read etdata
+        # FIXME eventually we should be able to just read from one location
+        if self.download_method == 'from_bucket':
+            geojson_data = self.read_data_from_bucket(self.data_file_path)
+        else:
+            geojson_data = self.read_data_from_local(self.data_file_path)
 
         # Set the user ids associated with this feature_collection
         user_ids_for_featColl = config.statics["feature_collections"][self.feature_collection_name]["users"]
@@ -780,9 +785,9 @@ class database_Util(object):
                                    permission, last_timeseries_update]
                             csv_data_writer.writerow(row)
 
-            if uid_feat_pairs:
-                session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
-                print("Added FeatureUserLink Table")
+                if uid_feat_pairs:
+                    session.execute(FeatureUserLink.insert().values(uid_feat_pairs))
+                    print("Added FeatureUserLink Table")
 
             csv_metadata.close()
             csv_timeseries.close()
