@@ -1,4 +1,4 @@
-#!/usr/bin/python (python 3!!!)
+#!/usr/bin/env python3
 import datetime as dt
 from subprocess import Popen, PIPE
 import urllib

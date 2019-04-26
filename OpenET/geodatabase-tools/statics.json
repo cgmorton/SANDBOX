@@ -1,6 +1,6 @@
 {
   "ingest_chunk_size": 1000,
-  "feature_collections": {
+  "feature_collections_openet": {
     "projects/openet/featureCollections/az_clu_public": {
       "users": [0],
       "permission": "public",
@@ -27,12 +27,14 @@
       "num_features": 225433,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
-    },
+    }
+  },
+  "feature_collections_roses": {
     "users/bdaudert/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset": {
       "users": [0],
       "permission": "public",
       "metadata": ["OBJECTID", "BASIN"],
-      "data_file_name": "WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
+      "data_file_name": "fake_data_WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset",
       "num_features": 4402,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
@@ -42,7 +44,7 @@
       "num_features": 37950,
       "permission": "public",
       "metadata": ["OBJECTID"],
-      "data_file_name": "BRC_Combined_subset_2009",
+      "data_file_name": "fake_data_BRC_Combined_subset_2009",
       "num_features": 37950,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
@@ -51,7 +53,7 @@
       "users": [0],
       "permission": "public",
       "metadata": [],
-      "data_file_name": "WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
+      "data_file_name": "fake_data_WBDHU8_Malheur_harney_field_boundaries_2016_sw_gw_irr",
       "num_features": 1784,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
@@ -60,7 +62,7 @@
       "users": [0],
       "permission": "public",
       "metadata": ["SimsID", "COUNTY", "CmdtyMast", "AcresMast"],
-      "data_file_name": "usgs_central_valley_mod_base15_ca_poly_170616",
+      "data_file_name": "fake_data_usgs_central_valley_mod_base15_ca_poly_170616",
       "num_features": 229911,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
@@ -69,16 +71,16 @@
       "users": [0],
       "permission": "public",
       "metadata": ["SimsID", "COUNTY", "CmdtyMast", "AcresMast"],
-      "data_file_name": "usgs_central_valley_mod_base15_ca_poly_170616_wgs84",
+      "data_file_name": "fake_data_usgs_central_valley_mod_base15_ca_poly_170616_wgs84",
       "num_features": 229911,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
-    },    
+    },
     "users/bdaudert/nasa-roses/paso_robles_base15_ca_poly_170616": {
       "users": [0],
       "permission": "public",
       "metadata": ["SimsID", "COUNTY", "CmdtyMast", "AcresMast"],
-      "data_file_name": "paso_robles_base15_ca_poly_170616",
+      "data_file_name": "fake_data_paso_robles_base15_ca_poly_170616",
       "num_features": 8122,
       "feature_collection_permission": "public",
       "url_path_to_shapefile": ""
