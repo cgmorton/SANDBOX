@@ -107,9 +107,7 @@ def arg_parse():
 if __name__ == "__main__":
     '''
     TO RUN
-    python upload_shape_to_ee.py -ld /Users/bdaudert/Desktop/CE_Shapefile/CE_shp_orig 
-    -bp gs://clim-engine-shapefiles/ 
-    -ap projects/climate-engine/featureCollections/shp_orig/ -db
+    python upload_shape_to_ee.py -ld /Users/bdaudert/Desktop/CE_Shapefile/CE_shp_orig -bp gs://clim-engine-shapefiles/ -ap projects/climate-engine/featureCollections/shp_orig/ -db
     '''
 
     EE_ACCOUNT = 'clim-engine-development@appspot.gserviceaccount.com'
@@ -146,9 +144,11 @@ if __name__ == "__main__":
 
         logging.info('  Ingesting into Earth Engine {}'.format(asset_id))
         print('  Ingesting into Earth Engine {}'.format(asset_id))
+        # Only .shp needs to be specified in earthengine upload
+        bucket_file_path = args.bucket_path +  file_name + '.shp'
         upload_shapefiles_to_ee(bucket_file_path, asset_id)
     # Delete from bucket
-    delete_files_from_bucket(args.bucket_path)
+    # delete_files_from_bucket(args.bucket_path)
 
 
 
