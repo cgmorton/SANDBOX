@@ -9,21 +9,48 @@ from db_methods import query_Util
 
 if __name__ == "__main__":
 
-    SCHEMA = config.NASA_ROSES_SCHEMA
-    DB_USER = config.NASA_ROSES_DB_USER
-    DB_PASSWORD = config.NASA_ROSES_DB_PASSWORD
-    DB_PORT = config.NASA_ROSES_DB_PORT
-    DB_HOST = config.NASA_ROSES_DB_HOST
-    DB_NAME = config.NASA_ROSES_DB_NAME
+    '''
+    Note: WHAT IS IN THE DATABASES RIGHT NOW:
+    etdata.dri.edu, db britta_test, schema test (all fake data)
+        feature_collection_name: projects/openet/featureCollections/ca_clu_public
+        data years: 2014 - 2017
+        vars: et, etr, etf, ndvi
+    etdata.dri.edu, db britta_test, schema openet_feb26
+        feature_collection_name: '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset
+        data years: 2003
+        vars: et, etr, eto, ndvi
+
+    '''
+
+    SCHEMA = config.SCHEMA
+    DB_USER = config.OPENET_DB_USER
+    DB_PASSWORD = config.OPENET_DB_PASSWORD
+    DB_PORT = config.OPENET_DB_PORT
+    DB_HOST = config.OPENET_DB_HOST
+    DB_NAME = config.OPENET_DB_NAME
+
+
     db_string = "postgresql+psycopg2://" + DB_USER + ":" + DB_PASSWORD
     db_string += "@" + DB_HOST + ":" + str(DB_PORT) + '/' + DB_NAME
     engine = create_engine(db_string, pool_size=20, max_overflow=0,
                            connect_args={'options': '-csearch_path={}'.format(SCHEMA + ',public')})
 
+    # Set test vars
     model = "ssebop"
     variable = "et"
     user_id = 0
     temporal_resolution = "monthly"
+
+    # LATEST SCHEMA test
+    year = '2017'
+    fc_name = 'projects/openet/featureCollections/ca_clu_public'
+    unique_feat_identifier = 'FID'
+
+    # SCHEMA openet_feb26
+    # year = '20013'
+    # fc_name = '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset'
+    # unique_feat_identifier = 'OBJECTID'
+
     QU = query_Util(model, variable, user_id, temporal_resolution, engine, SCHEMA)
 
 
@@ -31,13 +58,13 @@ if __name__ == "__main__":
     # FIXME: figure out how to run the same function for temporal_summary = raw and others
     '''
     # 1 API call example
-    Request monthly time series for a single field that is not associated 
-    with a user using the feature_id (unique primary key) directly 
+    Request monthly time series for a single field that is not associated
+    with a user using the feature_id (unique primary key) directly
     '''
     start_time = time.time()
     params = {
-        'start_date': '2003-01-01',
-        'end_date': '2003-12-31',
+        'start_date': year + '-01-01',
+        'end_date': year + '-12-31',
         'feature_id': 4,
         'temporal_summary': 'raw'
     }
@@ -59,10 +86,9 @@ if __name__ == "__main__":
 
     start_time = time.time()
     params = {
-        # 'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
-        'feature_collection_name': '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset',
-        'start_date': '2003-01-01',
-        'end_date': '2003-3-31',
+        'feature_collection_name': fc_name,
+        'start_date': year + '-01-01',
+        'end_date': year + '-3-31',
         'temporal_summary': 'mean'
     }
     if params['temporal_summary'] == 'raw':
@@ -86,12 +112,11 @@ if __name__ == "__main__":
 
     start_time = time.time()
     params = {
-        # 'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
-        'feature_collection_name': '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset',
-        'feature_metadata_name': 'OBJECTID',
+        'feature_collection_name': fc_name,
+        'feature_metadata_name': unique_feat_identifier,
         'feature_metadata_properties': '2645',
-        'start_date': '2003-01-01',
-        'end_date': '2003-06-30',
+        'start_date': year + '-01-01',
+        'end_date': year + '-06-30',
         'temporal_summary': 'raw'
     }
     if params['temporal_summary'] == 'raw':
@@ -107,19 +132,19 @@ if __name__ == "__main__":
 
     '''
     # 4 API call example 2.189 seconds, 95.12 seconds for temporal_summary = 'raw'
-    Request area averaged max monthly values for all features in a featureCollection for a user 
+    Request area averaged max monthly values for all features in a featureCollection for a user
     '''
 
     start_time = time.time()
     params = {
-        # 'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
-        'feature_collection_name': '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset',
-        'start_date': '2003-01-01',
-        'end_date': '2003-06-30',
+        'feature_collection_name': fc_name,
+        'feature_metadata_name': unique_feat_identifier,
+        'start_date': year + '-01-01',
+        'end_date': year + '-06-30',
         'temporal_summary': 'sum',
         'spatial_summary': 'mean'
     }
-    
+
     if params['temporal_summary'] == 'raw':
         data = QU.api_ex4_raw(**params)
     else:
@@ -138,12 +163,11 @@ if __name__ == "__main__":
 
     start_time = time.time()
     params = {
-        # 'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
-        'feature_collection_name': '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset',
-        'feature_metadata_name': 'OBJECTID',
+        'feature_collection_name': fc_name,
+        'feature_metadata_name': unique_feat_identifier,
         'feature_metadata_properties': ('2708', '2640', '2706'),
-        'start_date': '2003-01-01',
-        'end_date': '2003-12-31',
+        'start_date': year + '-01-01',
+        'end_date': year + '-12-31',
         'temporal_summary': 'mean'
     }
     if params['temporal_summary'] == 'raw':
@@ -159,16 +183,15 @@ if __name__ == "__main__":
 
     '''
     # 6 API call example  0.7411 seconds
-    Request time series for subset of features in collection defined by a separate geometry (like bbox or polygon) 
+    Request time series for subset of features in collection defined by a separate geometry (like bbox or polygon)
     '''
 
     start_time = time.time()
     params = {
-        # 'feature_collection_name': '/projects/nasa-roses/BRC_Combined_subset_2009',
-        'feature_collection_name': '/projects/nasa-roses/WBDHU4_Truckee_Carson_Walker_METRIC_NV_apoly_subset',
+        'feature_collection_name': fc_name,
         'selection_geometry': 'POLYGON((-111.5 42, -111.5 43, -111.4 43, -111.4 42, -111.5 42))',
-        'start_date': '2003-01-01',
-        'end_date': '2003-12-31',
+        'start_date': year + '-01-01',
+        'end_date': year + '-12-31',
         'temporal_summary': 'mean'
     }
     if params['temporal_summary'] == 'raw':

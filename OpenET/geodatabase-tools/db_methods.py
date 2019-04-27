@@ -22,7 +22,7 @@ import sqlalchemy.sql as sqa
 from sqlalchemy import event, DDL
 
 import config
-from initial_database_population import SCHEMA, PROJECT
+SCHEMA = config.SCHEMA
 
 #######################################
 # OpenET database tables
