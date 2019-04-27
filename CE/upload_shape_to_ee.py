@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# source activate ee-python
 
 import argparse
 import logging
