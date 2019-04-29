@@ -30,12 +30,14 @@ n specific
 
 # PyCharm
 .idea
-
 *credentials.json
 *token.json
 *config.py
 *clim-engine.json
 *nasa-roses.json
+
+# Directories
 /lib
 /OLD
+/CE/GEOJSON
 
