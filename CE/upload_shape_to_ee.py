@@ -74,13 +74,14 @@ def upload_shapefiles_to_ee(bucket_file_path, asset_id):
     else:
         shell_flag = True
 
+    args = [
+        'earthengine', 'upload', 'table',
+        '--asset_id', asset_id,
+        bucket_file_path
+    ]
     try:
         subprocess.check_output(
-            [
-                'earthengine', 'upload', 'table',
-                '--asset_id', asset_id,
-                bucket_file_path
-            ], shell=shell_flag)
+            args, shell=shell_flag)
         sleep(1)
     except Exception as e:
         logging.exception('    Exception: {}'.format(e))
@@ -108,7 +109,7 @@ def arg_parse():
 if __name__ == "__main__":
     '''
     TO RUN
-    python upload_shape_to_ee.py -ld /Users/bdaudert/Desktop/CE_Shapefile/CE_shp_orig -bp gs://clim-engine-shapefiles/ -ap projects/climate-engine/featureCollections/shp_orig/ -db
+    python upload_shape_to_ee.py -ld /Users/bdaudert/Desktop/CE_Shapefile/CE_shp_orig -bp gs://clim-engine-shapefiles/shp_orig -ap projects/climate-engine/featureCollections/shp_orig/ -db
     '''
 
     EE_ACCOUNT = 'clim-engine-development@appspot.gserviceaccount.com'
@@ -124,15 +125,13 @@ if __name__ == "__main__":
     for shapefile in shapefiles:
         shape_path, shape_file = os.path.split(shapefile)
         file_name = shape_file.split('.shp')[0]
-        if file_name in ['ClimateEngine_US_Counties', 'ClimateEngine_US_States']:
-            continue
         if args.asset_path[-1] == '/':
             asset_id = args.asset_path + file_name
         else:
             asset_id = args.asset_path + '/' + file_name
 
-        '''
-        for ext in ['.shp', '.dbf', '.prj', '.shx', '.sbn']:
+
+        for ext in ['.shp', '.dbf', '.prj', '.shx']:
             file_path = shape_path + '/' + file_name + ext
 
             if args.bucket_path[-1] == '/':
@@ -143,15 +142,18 @@ if __name__ == "__main__":
 
             logging.info('  Uploading {0} to bucket {1}'.format(file_path, bucket_file_path))
             print('  Uploading {0} to bucket {1}'.format(file_path, bucket_file_path))
-            upload_file_to_bucket(shapefile, bucket_file_path, remove_local=False)
+            upload_file_to_bucket(file_path, bucket_file_path, remove_local=False)
         '''
-
         bucket_file_path = args.bucket_path + file_name + '.shp'
         logging.info('  Ingesting into Earth Engine {}'.format(asset_id))
         print('  Ingesting into Earth Engine {}'.format(bucket_file_path))
         # Only .shp needs to be specified in earthengine upload
+        print('Bucket file path')
+        print(bucket_file_path)
+
         upload_shapefiles_to_ee(bucket_file_path, asset_id)
         sleep(1)
+        '''
     # Delete from bucket
     # delete_files_from_bucket(args.bucket_path)
 
