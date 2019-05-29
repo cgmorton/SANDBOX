@@ -51,16 +51,23 @@ if __name__ == "__main__":
     ee.Initialize(EE_CREDENTIALS)
 
     geojson_dir = 'GEOJSON/'
-    local_dir = '/Users/bdaudert/Desktop/CE_Shapefile/CE_shp_orig/'
+    local_dir = '/Users/bdaudert/DATA/CE/shapefiles/shp_simplified/'
     shape_files = filter(os.path.isfile, glob.glob(local_dir + '*.shp'))
+    print(shape_files)
     for shape_file in shape_files:
         s_path, s_file = os.path.split(str(shape_file))
 
         file_name = s_file.split('.shp')[0]
+        if file_name != 'ClimateEngine_FEWS_Admin2':
+            continue
+
+        '''
         if file_name in ['ClimateEngine_Countries','ClimateEngine_US_Counties', 'ClimateEngine_US_States',\
                         'ClimateEngine_US_HUC6', 'ClimateEngine_Navajo_Nation_Chapters', 'ClimateEngine_Navajo_Nation_Agencies',\
                         'ClimateEngine_Sierra_Meadows', 'ClimateEngine_Predictive_Service_Areas', 'ClimateEngine_FEWS_Admin1']:
             continue
+        '''
+
         print('Processing: ' + file_name)
         geojson_file_name = file_name + '.geojson'
         geojson_file_path = geojson_dir + geojson_file_name
@@ -85,6 +92,12 @@ if __name__ == "__main__":
                 except:
                     continue
                 properties = dict(zip(field_names, sr.record))
+                for key, val in properties.iteritems():
+                    if not isinstance(val, basestring) or not isinstance(val, float) or not isinstance(val, int):
+                        try:
+                            properties[key] = str(val)
+                        except:
+                            pass
                 features.append(dict(type="Feature", geometry=geom, properties=properties))
 
             # write the GeoJSON file
@@ -93,13 +106,13 @@ if __name__ == "__main__":
             geojson.close()
         else:
             print('Geojson exists ' + geojson_file_path)
-        
-        # Uplaod to bucker
-        bucket_file_path = 'gs://clim-engine-geojson/shp_orig/' + geojson_file_name
+
+        # Uplaod to bucket
+        bucket_file_path = 'gs://clim-engine-geojson/shp_simplified/' + geojson_file_name
         upload_file_to_bucket(geojson_file_path, bucket_file_path)
         # This throws error right now:
         # Failed to set acl for gs... Please ensure you have OWNER-role access to this resource.
         # make_file_public(bucket_file_path)
 
-        
+
         # delete_from_local(geojson_file_path)

@@ -1,0 +1,82 @@
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_Countries.shp -simplify 40% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_Countries.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_Countries.shp -simplify 40% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_Countries.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Admin1.shp -simplify 4% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_FEWS_Admin1.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Admin1.shp -simplify 4% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_FEWS_Admin1.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Admin2.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_FEWS_Admin2.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Admin2.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_FEWS_Admin2.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Crop_Zones.shp -simplify 15% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_FEWS_Crop_Zones.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Crop_Zones.shp -simplify 15% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_FEWS_Crop_Zones.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Livelihood_Zones.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_FEWS_Livelihood_Zones.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_FEWS_Livelihood_Zones.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_FEWS_Livelihood_Zones.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_Navajo_Nation_Agencies.shp -simplify 100% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_Navajo_Nation_Agencies.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_Navajo_Nation_Agencies.shp -simplify 100% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_Navajo_Nation_Agencies.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_Navajo_Nation_Chapters.shp -simplify 50% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_Navajo_Nation_Chapters.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_Navajo_Nation_Chapters.shp -simplify 50% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngineS_Navajo_Nation_Chapters.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_AZ.shp -simplify 20% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_AZ.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_AZ.shp -simplify 20% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_AZ.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_CA.shp -simplify 40% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_CA.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_CA.shp -simplify 40% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_CA.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_CO.shp -simplify 5% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_CO.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_CO.shp -simplify 5% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_CO.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_ID.shp -simplify 5% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_ID.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_ID.shp -simplify 5% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_ID.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_MT.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_MT.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_MT.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_MT.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_NM.shp -simplify 5% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_NM.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_NM.shp -simplify 5% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_NM.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_NV.shp -simplify 15% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_NV.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_NV.shp -simplify 15% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_NV.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_OR.shp -simplify 8% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_OR.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_OR.shp -simplify 8% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_OR.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_UT.shp -simplify 3% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_UT.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_UT.shp -simplify 3% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_UT.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_WA.shp -simplify 100% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_WA.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_WA.shp -simplify 100% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_WA.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_WY.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_WY.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_BLM_Grazing_Allotments_WY.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Grazing_Allotments_WY.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Bailey_Ecoregions.shp -simplify 100% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_Bailey_Ecoregions.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Bailey_Ecoregions.shp -simplify 100% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Bailey_Ecoregions.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Climate_Divisions.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_Climate_Divisions.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Climate_Divisions.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_BLM_Climate_Divisions.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Counties.shp -simplify 2% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_Counties.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Counties.shp -simplify 2% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_Counties.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_HUC6.shp -simplify 40% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_HUC6.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_HUC6.shp -simplify 40% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_HUC6.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_HUC8.shp -simplify 0.01% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_HUC8.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_HUC8.shp -simplify 0.01% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_HUC8.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Predictive_Service_Areas.shp -simplify 8% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_Predictive_Service_Areas.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Predictive_Service_Areas.shp -simplify 8% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_Predictive_Service_Areas.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Sierra_Meadows.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_Sierra_Meadows.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_Sierra_Meadows.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_Sierra_Meadows.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_States.shp -simplify 1% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/ClimateEngine_US_States.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/ClimateEngine_US_States.shp -simplify 1% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/ClimateEngine_US_States.shp
+
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/eco_us.shp -simplify 100% keep-shapes -o format=geojson /Users/bdaudert/DATA/CE/geojson/shp_simplified/eco_us.geojson
+mapshaper /Users/bdaudert/DATA/CE/shapefiles/shp_orig/eco_us.shp -simplify 100% keep-shapes -o /Users/bdaudert/DATA/CE/shapefiles/shp_simplified/eco_us.shp
+
+

@@ -20,7 +20,12 @@ if __name__ == '__main__':
             stn_lon = None; stn_lat = None
             #t = ','.join(row[0].split('\t'))
             l = row[0].split('\t')
-            stn_id = l[0]; stn_state = l[1]; stn_name = l[2]
+            stn_id = l[0]; stn_state = l[1];
+            stn_name = l[2]
+            try:
+                stn_name += ' ' + row[1]
+            except:
+                pass
             stn_id_int = None
             try:
                 stn_id_int = int(float(stn_id))
