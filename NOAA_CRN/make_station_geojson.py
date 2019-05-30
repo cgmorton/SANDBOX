@@ -2,9 +2,10 @@
 import csv
 import json
 
-stn_names = '/Users/bdaudert/DATA/NOAA-CRN/station_names.txt'
+# stn_names = '/Users/bdaudert/DATA/NOAA-CRN/station_names.txt'
+stn_names = '/Users/bdaudert/DATA/NOAA-CRN/new_station_names.txt'
 stn_locs = '/Users/bdaudert/DATA/NOAA-CRN/stationID_lat_lon_2012.txt'
-out_file_name = '/Users/bdaudert/DATA/NOAA-CRN/NOAA_CRN_stations_2012_GEOM.geojson'
+out_file_name = '/Users/bdaudert/DATA/NOAA-CRN/NOAA_CRN_stations_2019_GEOM.geojson'
 
 if __name__ == '__main__':
     geojson_data = {
@@ -20,6 +21,8 @@ if __name__ == '__main__':
             stn_lon = None; stn_lat = None
             #t = ','.join(row[0].split('\t'))
             l = row[0].split('\t')
+            '''
+            # for station_names.txt
             stn_id = l[0]; stn_state = l[1];
             stn_name = l[2]
             try:
@@ -32,6 +35,13 @@ if __name__ == '__main__':
             except:
                 continue
             print stn_id
+            '''
+            # for new_station_names.txt
+            stn_id = l[0]
+            stn_id_int = int(stn_id)
+            rest = l[1].split('.txt')[0].split('-2019-')[1].split('_')
+            stn_state = rest[0]
+            stn_name = ' '.join(rest[1:-2]) + ', ' + stn_state + ', ' + ''.join(rest[-2:])
             # Grab station lon/lats
             # '96404.0\t 62.7400\t -141.210\r'
             #stn_loc_line = loc_lines[row_idx].replace('\r', '').split('\t ')
@@ -57,6 +67,7 @@ if __name__ == '__main__':
                 'properties': {
                     'Name': stn_name,
                     'State': stn_state,
+                    ''
                     'ID': stn_id,
                     'Lon': str(stn_lon),
                     'Lat': str(stn_lat)
