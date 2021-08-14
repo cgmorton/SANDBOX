@@ -35,9 +35,17 @@ n specific
 *config.py
 *clim-engine.json
 *nasa-roses.json
+*openet.json
+*openet-dri.json
+
+# Config files
+*config.py
+*configy.yaml
+
 
 # Directories
 /lib
 /OLD
 /CE/GEOJSON
-
+*/venv
+OpenET/TESTS/venv

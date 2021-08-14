@@ -2,11 +2,13 @@
 import csv
 import json
 
-stn_names = '/Users/bdaudert/DATA/NOAA-CRN/station_names.txt'
-stn_locs = '/Users/bdaudert/DATA/NOAA-CRN/stationID_lat_lon_2019.txt'
+# stn_names = '/Users/bdaudert/DATA/NOAA-CRN/new_station_names_updated.txt'
+# stn_locs = '/Users/bdaudert/DATA/NOAA-CRN/stationID_lat_lon_2019.txt'
+stn_names = '/Users/bdaudert/DATA/NOAA-CRN/station_names_2020.txt'
+stn_locs = '/Users/bdaudert/DATA/NOAA-CRN/stationID_lat_lon_2020.txt'
 # stn_names = '/Users/bdaudert/DATA/NOAA-CRN/name_id_list_AK_2014.txt'
 # stn_locs = '/Users/bdaudert/DATA/NOAA-CRN/USCRN_stations_id_lat_lon_AK.txt'
-out_file_name = '/Users/bdaudert/DATA/NOAA-CRN/NOAA_CRN_stations_AK_2014_GEOM.geojson'
+out_file_name = '/Users/bdaudert/DATA/NOAA-CRN/NOAA_CRN_stations_2020_GEOM.geojson'
 
 if __name__ == '__main__':
     geojson_data = {
@@ -19,10 +21,11 @@ if __name__ == '__main__':
     with open(stn_names, 'r') as in_file:
         rdr = csv.reader(in_file, delimiter=' ')
         for row_idx, row in enumerate(rdr):
-            print(row)
             stn_lon = None; stn_lat = None
-            # l = row[0].split()
+
             l = row[0].split('\t')
+            if len(l) != 2:
+                l = [row[0], row[1]]
             print(l)
 
             # for new_station_names.txt
@@ -36,11 +39,14 @@ if __name__ == '__main__':
             # '96404.0\t 62.7400\t -141.210\r'
             #stn_loc_line = loc_lines[row_idx].replace('\r', '').split('\t ')
             for loc in loc_lines:
+
                 if '_AK' in stn_names:
                     stn_loc_line = loc.split('  ')
                 else:
-                    stn_loc_line = loc.replace('\r', '').split('\t ')
+                    # stn_loc_line = loc.replace('\r', '').split('\t ')
+                    stn_loc_line = loc.split('   ')
                 stn_loc_line_id_int = None
+
                 try:
                     stn_loc_line_id_int = int(float(stn_loc_line[0]))
                 except:
