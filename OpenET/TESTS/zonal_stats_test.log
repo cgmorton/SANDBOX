@@ -1,0 +1,54 @@
+2021-08-14 12:23:16,134 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/$discovery/rest?version=v1alpha&prettyPrint=false
+2021-08-14 12:23:16,169 - google_auth_httplib2 - DEBUG - Making request: POST https://accounts.google.com/o/oauth2/token
+2021-08-14 12:23:16,188 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): accounts.google.com:443
+2021-08-14 12:23:17,023 - urllib3.connectionpool - DEBUG - https://accounts.google.com:443 "POST /o/oauth2/token HTTP/1.1" 200 None
+2021-08-14 12:23:17,038 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): earthengine.googleapis.com:443
+2021-08-14 12:23:18,197 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /$discovery/rest?version=v1alpha&prettyPrint=false HTTP/1.1" 200 None
+2021-08-14 12:23:18,453 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/$discovery/rest?version=v1alpha&prettyPrint=false
+2021-08-14 12:23:18,464 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): earthengine.googleapis.com:443
+2021-08-14 12:23:19,377 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /$discovery/rest?version=v1alpha&prettyPrint=false HTTP/1.1" 200 None
+2021-08-14 12:23:19,615 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/algorithms?prettyPrint=false&alt=json
+2021-08-14 12:23:19,906 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/algorithms?prettyPrint=false&alt=json HTTP/1.1" 200 None
+2021-08-14 12:23:37,199 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/$discovery/rest?version=v1alpha&prettyPrint=false
+2021-08-14 12:23:37,232 - google_auth_httplib2 - DEBUG - Making request: POST https://accounts.google.com/o/oauth2/token
+2021-08-14 12:23:37,248 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): accounts.google.com:443
+2021-08-14 12:23:37,824 - urllib3.connectionpool - DEBUG - https://accounts.google.com:443 "POST /o/oauth2/token HTTP/1.1" 200 None
+2021-08-14 12:23:37,837 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): earthengine.googleapis.com:443
+2021-08-14 12:23:38,681 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /$discovery/rest?version=v1alpha&prettyPrint=false HTTP/1.1" 200 None
+2021-08-14 12:23:38,931 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/$discovery/rest?version=v1alpha&prettyPrint=false
+2021-08-14 12:23:38,944 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): earthengine.googleapis.com:443
+2021-08-14 12:23:39,804 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /$discovery/rest?version=v1alpha&prettyPrint=false HTTP/1.1" 200 None
+2021-08-14 12:23:40,059 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/algorithms?prettyPrint=false&alt=json
+2021-08-14 12:23:40,424 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/algorithms?prettyPrint=false&alt=json HTTP/1.1" 200 None
+2021-08-14 12:23:40,995 - root - INFO - PROCESSING TX disalexi 2019 to 2019
+2021-08-14 12:23:40,996 - root - DEBUG -   Active Tasks
+2021-08-14 12:23:40,997 - googleapiclient.discovery - DEBUG - URL being requested: GET https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json
+2021-08-14 12:23:41,750 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json HTTP/1.1" 200 None
+2021-08-14 12:23:41,761 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEKCi6pSgrPIC
+2021-08-14 12:23:42,159 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEKCi6pSgrPIC HTTP/1.1" 200 None
+2021-08-14 12:23:42,191 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEKWCzrmuqfIC
+2021-08-14 12:23:42,551 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEKWCzrmuqfIC HTTP/1.1" 200 None
+2021-08-14 12:23:42,607 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEJDny-TgofIC
+2021-08-14 12:23:43,285 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEJDny-TgofIC HTTP/1.1" 200 None
+2021-08-14 12:23:43,294 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICELiJh77aofIC
+2021-08-14 12:23:43,661 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICELiJh77aofIC HTTP/1.1" 200 None
+2021-08-14 12:23:43,709 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICENOanpPUofIC
+2021-08-14 12:23:44,060 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICENOanpPUofIC HTTP/1.1" 200 None
+2021-08-14 12:23:44,296 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEOHnpsDMofIC
+2021-08-14 12:23:44,812 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEOHnpsDMofIC HTTP/1.1" 200 None
+2021-08-14 12:23:44,857 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEIS4xZrFofIC
+2021-08-14 12:23:45,215 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEIS4xZrFofIC HTTP/1.1" 200 None
+2021-08-14 12:23:45,270 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICENfCmqDgl_IC
+2021-08-14 12:23:45,606 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICENfCmqDgl_IC HTTP/1.1" 200 None
+2021-08-14 12:23:45,660 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEK6yqMnel_IC
+2021-08-14 12:23:46,018 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEK6yqMnel_IC HTTP/1.1" 200 None
+2021-08-14 12:23:46,074 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEL2_5vbcl_IC
+2021-08-14 12:23:46,435 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEL2_5vbcl_IC HTTP/1.1" 200 None
+2021-08-14 12:23:46,490 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEPSF96nbl_IC
+2021-08-14 12:23:46,835 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEPSF96nbl_IC HTTP/1.1" 200 None
+2021-08-14 12:23:46,886 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEJHpt9nZl_IC
+2021-08-14 12:23:47,225 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEJHpt9nZl_IC HTTP/1.1" 200 None
+2021-08-14 12:23:47,288 - googleapiclient.discovery - DEBUG - Next page request URL: list_next https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEOmsv4fYl_IC
+2021-08-14 12:23:47,626 - urllib3.connectionpool - DEBUG - https://earthengine.googleapis.com:443 "GET /v1alpha/projects/earthengine-legacy/operations?pageSize=500&alt=json&pageToken=CILaoeWlsPICEOmsv4fYl_IC HTTP/1.1" 200 None
+2021-08-14 12:23:48,411 - root - INFO - Processing year 2019
+2021-08-14 12:23:48,412 - root - INFO - TILE: 15RUN
