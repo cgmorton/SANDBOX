@@ -1,6 +1,7 @@
 from calendar import monthrange
 import datetime as dt
 import os
+import pprint
 from time import sleep
 
 import ee
@@ -34,20 +35,22 @@ def get_ee_tasks(states=['RUNNING', 'READY']):
     return tasks
 
 
-def ee_compute_etdata(img, featColl, tile_crs):
-    '''
-    Apply a reducer over the area of each feature in the given feature collection.
-    :param img: Earth Engine Imgage
-    :param featColl: Earth Engine FeatureCollection
-    :return: Earth Engine FeatureCollection
-    '''
-    ee_reducedFeatColl = ee.Image(img).reduceRegions(
-        reducer=ee.Reducer.mean(),
-        collection=featColl,
-        crs=tile_crs,
-        scale=30
-    )
-    return ee_reducedFeatColl
+# # CGM - This is more confusing as a utility function than just having this one line in the main
+# def ee_compute_etdata(img, featColl, tile_crs, tile_transform=[30, 0, 15, 0, -30, 15]):
+#     '''
+#     Apply a reducer over the area of each feature in the given feature collection.
+#     :param img: Earth Engine Imgage
+#     :param featColl: Earth Engine FeatureCollection
+#     :return: Earth Engine FeatureCollection
+#     '''
+#     ee_reducedFeatColl = ee.Image(img).reduceRegions(
+#         reducer=ee.Reducer.mean(),
+#         collection=featColl,
+#         crs=tile_crs,
+#         crsTransform=tile_transform,
+#         # scale=30
+#     )
+#     return ee_reducedFeatColl
 
 
 def delay_task(delay_time=0, task_max=-1, task_count=0):
@@ -114,7 +117,8 @@ def delay_task(delay_time=0, task_max=-1, task_count=0):
     return ready_task_count
 
 
-def ee_export_feat_coll_to_bucket(bucket, bucket_sub_dir, file_name, featColl, task_name, current_task_count):
+def ee_export_feat_coll_to_bucket(bucket, bucket_sub_dir, file_name, featColl,
+                                  task_name, current_task_count):
     '''
     Uploads featureColl to Google Cloud storage bucket as geojson
     :param bucket_dir:
@@ -165,9 +169,12 @@ def get_valid_feature_collections(feature_collection_name, mgrs_tiles):
     elif not feature_collection_name and mgrs_tiles:
         feature_collection_names = []
         for tile in mgrs_tiles:
-            feature_collection_names += [fcn for fcn in tiles_by_state.keys() if tile in tiles_by_state[fcn]]
+            feature_collection_names += [
+                fcn for fcn in tiles_by_state.keys()
+                if tile in tiles_by_state[fcn]]
     elif feature_collection_name and mgrs_tiles:
-        tiles_in_fcn = [t for t in mgrs_tiles if t in tiles_by_state[feature_collection_name]]
+        tiles_in_fcn = [t for t in mgrs_tiles
+                        if t in tiles_by_state[feature_collection_name]]
         if tiles_in_fcn:
             feature_collection_names.append(feature_collection_name)
     return feature_collection_names
@@ -190,7 +197,8 @@ def get_valid_tile_list(feature_collection_name, mgrs_tiles):
         return list(mgrs_tiles)
     else:
         if feature_collection_name in tiles_by_state.keys():
-            valid_tile_list = [t for t in mgrs_tiles if t in tiles_by_state[feature_collection_name]]
+            valid_tile_list = [t for t in mgrs_tiles
+                               if t in tiles_by_state[feature_collection_name]]
         else:
             valid_tile_list = ["NOTILE"]
     return valid_tile_list
@@ -231,9 +239,12 @@ def set_feature_properties(featColl, extra_props=[], props_to_delete=[]):
         return featColl
 
 
-def set_et_fraction_coll(model, feature_collection_name, start_date, end_date, tile):
-    et_reference_coll = set_model_collection(None, "et_reference", feature_collection_name, start_date, end_date, tile)
-    et_coll = set_model_collection(model, "et", feature_collection_name, start_date, end_date, tile)
+# CGM - This ends up recursively calling set_model_collection, is that bad?
+def set_et_fraction_coll(model, feature_collection_name, start_date, end_date, tile_ftr):
+    et_reference_coll = set_model_collection(
+        None, "et_reference", feature_collection_name, start_date, end_date, tile_ftr)
+    et_coll = set_model_collection(
+        model, "et", feature_collection_name, start_date, end_date, tile_ftr)
 
     def add_et_fraction(img):
         img_date = ee.Date(img.get('system:time_start'))
@@ -247,26 +258,30 @@ def set_et_fraction_coll(model, feature_collection_name, start_date, end_date, t
     return et_fraction_coll
 
 
-def set_model_collection(model, variable, feature_collection_name, start_date, end_date, tile):
-    mgrs_feat_coll_name = "projects/openet/mgrs/mgrs_region"
+def set_model_collection(model, variable, feature_collection_name,
+                         start_date, end_date, tile_ftr, tile_buffer=10000):
+    # mgrs_feat_coll_name = "projects/openet/mgrs/mgrs_region"
     et_reference_coll_name = "projects/openet/reference_et/gridmet/monthly"
+    et_reference_band_name = 'eto'
     ndvi_coll_name = "projects/openet/ndvi/conus_gridmet/monthly_provisional"
     precipitation_coll_name = "IDAHO_EPSCOR/GRIDMET"
+    precipitation_band_name = 'pr'
     if feature_collection_name == "CA":
         et_coll_name = "projects/openet/{}/california_cimis/monthly_provisional".format(model)
     else:
         et_coll_name = "projects/openet/{}/conus_gridmet/monthly_provisional".format(model)
 
     # Set a bounding geometry based on the tile
-    mgrs_coll = ee.FeatureCollection(mgrs_feat_coll_name).filter(ee.Filter.eq('mgrs', tile)).first()
-    mgrs_geom = mgrs_coll.geometry().buffer(10000)
+    tile_buffer_geom = tile_ftr.geometry().buffer(tile_buffer)
 
     def scale_collection(collection, variable):
         sf = "scale_factor_{}".format(variable)
 
         def scale_func(img):
             scale_factor = ee.Number(img.get(sf))
-            return img.multiply(scale_factor).select([0], [variable]).copyProperties(img, ["system:time_start"])\
+            return img.multiply(scale_factor)\
+                .select([0], [variable])\
+                .copyProperties(img, ["system:time_start"])\
                 .copyProperties(img)
 
         return collection.map(scale_func)
@@ -277,51 +292,62 @@ def set_model_collection(model, variable, feature_collection_name, start_date, e
         raise Exception(error)
 
     # NOTE: ndvi, precipitation, et_reference are model independent
-    if variable == "et_reference":
-        ee_coll = ee.ImageCollection(et_reference_coll_name).filterDate(start_date, end_date) \
-            .filterBounds(mgrs_geom)\
-            .select(["eto"], [variable])
+    if variable in ["et", "count"]:
+        ee_coll = ee.ImageCollection(et_coll_name)\
+            .filterDate(start_date, end_date)\
+            .filterBounds(tile_buffer_geom).select(variable)
+    elif variable == "et_reference":
+        ee_coll = ee.ImageCollection(et_reference_coll_name)\
+            .filterDate(start_date, end_date) \
+            .select([et_reference_band_name], [variable])
     elif variable == "et_fraction":
         # Compute et_fraction: et / et_reference from  monthly data
-        ee_coll = set_et_fraction_coll(model, feature_collection_name, start_date, end_date, tile)
+        ee_coll = set_et_fraction_coll(
+            model, feature_collection_name,  start_date, end_date, tile_ftr)
     elif variable == "ndvi":
         ee_coll = ee.ImageCollection(ndvi_coll_name)\
-            .filterDate(start_date, end_date).filterBounds(mgrs_geom)
+            .filterDate(start_date, end_date)\
+            .filterBounds(tile_buffer_geom)
     elif variable == "precipitation":
-        ee_coll = ee.ImageCollection(precipitation_coll_name).filterDate(start_date, end_date) \
-            .filterBounds(mgrs_geom) \
-            .select(["pr"], [variable])
-    elif variable in ["et", "count"]:
-        ee_coll = ee.ImageCollection(et_coll_name).filterDate(start_date, end_date)\
-            .filterBounds(mgrs_geom).select(variable)
+        ee_coll = ee.ImageCollection(precipitation_coll_name)\
+            .filterDate(start_date, end_date)\
+            .select([precipitation_band_name], [variable])
 
     # Apply scale factor
     if variable not in ["precipitation", "et_fraction", "et_reference"]:
         ee_coll = scale_collection(ee_coll, variable)
+
     return ee_coll
 
 
-def set_ee_etdata_img(model, variables, tile, tile_crs, year, feature_collection_name, start_month=1, end_month=12):
+def set_ee_etdata_img(model, variables, tile_ftr, tile_crs, year,
+                      feature_collection_name, start_month=1, end_month=12,
+                      tile_transform=[30, 0, 15, 0, -30, 15], tile_buffer=10000):
     """
     Filters model collection by variable and by monthly and annual time steps in year and applies statistic
     to create an Image where each band corresponds to one time step
     :param model_asset_id: EE ImageCollection for the model
     :param variables: list
+    :param tile_crs: ee.Feature
     :param tile_crs: string
     :param year: int
     :param start_month: int
     :param end_month: int
+    :param tile_transform: list
+    :param tile_buffer: int
     :return: Earth Engine Image
     """
-    mgrs_feat_coll_name = "projects/openet/mgrs/mgrs_region"
-    mgrs_coll = ee.FeatureCollection(mgrs_feat_coll_name).filter(ee.Filter.eq('mgrs', tile)).first()
-    mgrs_geom = mgrs_coll.geometry().buffer(10000)
+
+    tile_buffer_geom = tile_ftr.geometry().buffer(tile_buffer)
+
+    # TODO: Simplify this section using the calendar range module or EE date objects
     last_month_idx = end_month + 1
     now = dt.datetime.now()
     current_year = int(now.year)
     current_month = int(now.month)
     current_day = int(now.day)
     current_month_length = monthrange(current_year, current_month)[1]
+
     # Make sure we do not extend into the future
     if str(current_year) == str(year):
         if last_month_idx > current_month or (last_month_idx == current_month and current_day != current_month_length):
@@ -341,17 +367,26 @@ def set_ee_etdata_img(model, variables, tile, tile_crs, year, feature_collection
             sd = "{}-{}-01".format(year, str(m_int).zfill(2))
             month_length = str()
             ed = "{}-{}-{}".format(year, str(m_int).zfill(2), monthrange(int(year), m_int)[1])
-            ee_coll = set_model_collection(model, variable, feature_collection_name, sd, ed, tile)
+
+            ee_coll = set_model_collection(
+                model, variable, feature_collection_name, sd, ed, tile_ftr)
+
+            # CGM - Is this just a .rename()?
             coll = ee_coll.select([variable], [band])
 
+            # CGM - Test out reprojecting all of the calls to the target MGRS transform
             if variable == "precipitation":
                 ee_img = ee.Image(coll.sum())
-                ee_img = ee_img.resample("bilinear").reproject(crs=tile_crs, scale=30)
+                ee_img = ee_img.resample("bilinear")
+                # ee_img = ee_img.resample("bilinear").reproject(crs=tile_crs, scale=30)
             else:
                 ee_img = coll.mosaic()
+                # ee_img = coll.mosaic().reproject(crs=tile_crs, scale=30)
+            ee_img = ee_img.reproject(crs=tile_crs, crsTransform=tile_transform)
 
             # FIXME: requested by charles but is it needed?
-            ee_img = ee_img.clip(mgrs_geom)
+            ee_img = ee_img.clip(tile_buffer_geom)
+
             ee_img_list.append(ee_img)
 
         # Annual data
@@ -359,15 +394,25 @@ def set_ee_etdata_img(model, variables, tile, tile_crs, year, feature_collection
             band = "{}_annual".format(variable)
             sd = str(year) + "{}-01-01".format(year)
             ed = str(year) + "{}-12-31".format(year)
-            ee_coll = set_model_collection(model, variable, feature_collection_name, sd, ed, tile)
+            ee_coll = set_model_collection(
+                model, variable, feature_collection_name, sd, ed, tile_ftr)
             coll = ee_coll.select([variable], [band])
+
             if variable in ["ndvi", "et_fraction"]:
                 ee_img = ee.Image(coll.mean())
             else:
                 ee_img = ee.Image(coll.sum())
+
             if variable == "precipitation":
-                ee_img = ee_img.resample("bilinear").reproject(crs=tile_crs, scale=30)
+                ee_img = ee_img.resample("bilinear")
+                # ee_img = ee_img.resample("bilinear").reproject(crs=tile_crs, scale=30)
+
+            # CGM - Test out reprojecting all of the calls to the target MGRS transform
+            ee_img = ee_img.reproject(crs=tile_crs, crsTransform=tile_transform)
+
             ee_img_list.append(ee_img)
+
     # Combine images into one multi-band image
     ee_img = ee.Image.cat(ee_img_list)
+
     return ee_img
