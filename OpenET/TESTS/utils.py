@@ -6,7 +6,8 @@ from time import sleep
 
 import ee
 
-from tiles_by_state import fbt as tiles_by_state
+from zones_by_state import fbt as tiles_by_state
+# from tiles_by_state import fbt as tiles_by_state
 
 
 def get_ee_tasks(states=['RUNNING', 'READY']):
@@ -164,7 +165,7 @@ def get_valid_feature_collections(feature_collection_name, mgrs_tiles):
     :return: List
     """
     feature_collection_names = []
-    if feature_collection_name and not  mgrs_tiles:
+    if feature_collection_name and not mgrs_tiles:
         feature_collection_names.append(feature_collection_name)
     elif not feature_collection_name and mgrs_tiles:
         feature_collection_names = []

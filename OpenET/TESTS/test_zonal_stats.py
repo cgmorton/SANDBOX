@@ -8,11 +8,16 @@ import config
 import utils
 
 # CGM - Moved this here, but maybe the config would make more sense
-MGRS_FEAT_COLL_NAME = "projects/openet/mgrs/mgrs_region"
+# MGRS_FEAT_COLL_NAME = "projects/openet/mgrs/mgrs_region"
+# MGRS_FEAT_COLL_NAME = "projects/openet/mgrs/conus_gridmet/tiles"
+MGRS_FEAT_COLL_NAME = "projects/openet/mgrs/conus_gridmet/zones"
+# MGRS_FEAT_COLL_NAME = "projects/openet/mgrs/california_cimis/zones"
 
 
-def zonal_stats(feature_collection_name, feature_collection_asset_dir, mgrs_tiles, model, variables,
-           start_year, end_year, start_month, end_month, data_bucket, data_bucket_sub_dir):
+def zonal_stats(feature_collection_name, feature_collection_asset_dir,
+                mgrs_tiles, model, variables,
+                start_year, end_year, start_month, end_month,
+                data_bucket, data_bucket_sub_dir):
     """
     ET data precomputation of zonal statistics
     and export to Google Cloud bucket as geojson files
@@ -102,7 +107,8 @@ def zonal_stats(feature_collection_name, feature_collection_asset_dir, mgrs_tile
                 if tile == "NOTILE":
                     raise Exception('NOTILE support is currently disabled')
 
-                zoned_feat_coll = feat_coll.filter(ee.Filter.eq("MGRS_TILE", tile))
+                zoned_feat_coll = feat_coll.filter(ee.Filter.stringStartsWith("MGRS_TILE", tile))
+                # zoned_feat_coll = feat_coll.filter(ee.Filter.eq("MGRS_TILE", tile))
                 # pprint.pprint(zoned_feat_coll.first().getInfo())
                 # pprint.pprint(zoned_feat_coll.size().getInfo())
                 # print('zones_feat_coll')
@@ -148,19 +154,20 @@ def zonal_stats(feature_collection_name, feature_collection_asset_dir, mgrs_tile
                 }
                 reduced_feat_coll = utils.set_feature_properties(
                     reduced_feat_coll, extra_props=extra_props)
-                pprint.pprint(reduced_feat_coll.first().getInfo())
-                print('reduced_feat_coll')
-                input('ENTER')
+                # pprint.pprint(reduced_feat_coll.first().getInfo())
+                # print('reduced_feat_coll')
+                # input('ENTER')
 
                 # Upload to bucket as geojson
                 # CGM - Why do you put "_meta_" between each term?
                 file_name = "_meta_".join([fcn, str(year), str(s_month_str), str(e_month_str), tile])
-                task_name = "zonal_et_{}_{}_{}_{}".format(model, fcn, tile, str(year))
+                task_name = "zonal_et_{}_{}_{}_{}_{}_{}".format(
+                    model, fcn, tile, str(year), s_month_str, e_month_str)
 
-                # utils.ee_export_feat_coll_to_bucket(
-                #     data_bucket, data_bucket_sub_dir, file_name, reduced_feat_coll,
-                #     task_name, ready_task_count)
-                # print("ETDATA PRECOMPUTED for {} TILE {}!".format(feature_collection_name, tile))
+                utils.ee_export_feat_coll_to_bucket(
+                    data_bucket, data_bucket_sub_dir, file_name, reduced_feat_coll,
+                    task_name, ready_task_count)
+                print("ETDATA PRECOMPUTED for {} TILE {}!".format(feature_collection_name, tile))
 
 
 if __name__ == '__main__':
@@ -169,14 +176,14 @@ if __name__ == '__main__':
     # ee.Initialize(ee_credentials)
     ee.Initialize()
 
-    state_collection_name = ["TX"]
+    state_collection_name = ["TX", "MT"]
     mgrs_tiles = []
     model = "disalexi"
     variables = ["et", "et_reference", "et_fraction", "ndvi", "precipitation", "count"]
-    start_year = "2019"
-    end_year = "2019"
-    start_month = "01"
-    end_month = "12"
+    start_year = "2020"
+    end_year = "2020"
+    start_month = "07"
+    end_month = "07"
 
     for state_collection_name in state_collection_name:
         print("PROCESSING {}".format(' '.join([state_collection_name, model, start_year, 'to', end_year])))
